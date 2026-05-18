@@ -1,0 +1,22 @@
+PascalCase:
+
+Classes, Structs, Enums
+
+Interfaces
+
+Methods & Properties
+
+Public Fields (generally discouraged)
+
+Constants
+
+camelCase:
+
+Local Variables
+
+Private Fields
+
+Static Fields
+
+Use the underscore "_" when denoting private fields, e.g. _user
+
