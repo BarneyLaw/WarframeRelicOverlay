@@ -3,9 +3,29 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <IsPackable>false</IsPackable>
+    <AssemblyName>Integration.Tests</AssemblyName>
+    <RootNamespace>WarframeRelicOverlay.Tests.Integration</RootNamespace>
     <!-- TargetFramework, Nullable, ImplicitUsings, LangVersion, AllowUnsafeBlocks
          are set in Directory.Build.props -->
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\WarframeRelicOverlay.csproj" />
+  </ItemGroup>
+
+  <!-- Copy tessdata from repo root so Tesseract can find eng.traineddata at test runtime -->
+  <ItemGroup>
+    <Content Include="..\..\tessdata\**" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\tessdata')">
+      <Link>tessdata\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+  <!-- Copy test images to output so tests can load them without a game session -->
+  <ItemGroup>
+    <Content Include="test-images\**" CopyToOutputDirectory="PreserveNewest">
+      <Link>test-images\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -19,10 +39,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="FluentAssertions" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\WarframeRelicOverlay.csproj" />
+    <PackageReference Include="System.Drawing.Common" />
   </ItemGroup>
 
 </Project>
