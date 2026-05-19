@@ -1,0 +1,13 @@
+{
+  "DetectionMode": "EELog",
+  "EeLogPathOverride": null,
+  "DetectionIntervalMs": 250,
+  "DetectionStreak": 2,
+  "StabilizationDelayMs": 250,
+  "PriceCacheTtlMinutes": 5,
+  "OverlayOpacity": 1.0,
+  "PriceFontSizeOverride": 0,
+  "ToggleHotkey": "Shift+F9",
+  "DebugMode": false,
+  "SaveDebugImages": false
+}

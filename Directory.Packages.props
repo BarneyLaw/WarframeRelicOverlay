@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <!-- Core framework extensions -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="9.0.5" />
+  </ItemGroup>
+
+  <!-- OCR -->
+  <ItemGroup>
+    <PackageVersion Include="Tesseract" Version="5.2.0" />
+  </ItemGroup>
+
+  <!-- Fuzzy string matching -->
+  <ItemGroup>
+    <PackageVersion Include="FuzzySharp" Version="2.0.2" />
+  </ItemGroup>
+
+  <!-- GDI+ image processing (LockBits, Bitmap) -->
+  <ItemGroup>
+    <PackageVersion Include="System.Drawing.Common" Version="9.0.5" />
+  </ItemGroup>
+
+  <!-- Test packages -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="FluentAssertions" Version="8.2.0" />
+  </ItemGroup>
+</Project>
