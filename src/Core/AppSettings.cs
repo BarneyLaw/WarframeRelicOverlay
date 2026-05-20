@@ -4,6 +4,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 
+/// <summary>
+/// Represents the application settings loaded from a JSON file. 
+/// Provides validation and clamping of values to ensure they are within reasonable ranges. 
+/// Also handles loading defaults when the file is missing or corrupt, and saving back to disk.
+/// </summary>
 public sealed class AppSettings
 {
     public string DetectionMode { get; set; } = "EELog";
@@ -28,8 +33,17 @@ public sealed class AppSettings
         WriteIndented = true,
     };
 
+    /// <summary>
+    /// Validates the settings, ensuring that values are within expected ranges and that strings are not null or empty where required.
+    /// Returns a list of warnings for any values that were out of range and have been clamped, 
+    /// or for any unknown options that have been reset to defaults. 
+    /// Does not throw exceptions; instead it corrects invalid values and reports them via the returned warnings list.
+    /// </summary>
+    /// <returns></returns>
     public List<string> Validate()
     {
+        // possible future improvement: each invalid setting could be reported as a separate warning, instead of just the first one encountered
+
         var warnings = new List<string>();
 
         if (DetectionMode is not ("EELog" or "OCR" or "Manual"))
@@ -97,6 +111,13 @@ public sealed class AppSettings
         return warnings;
     }
 
+    /// <summary>
+    /// Loads settings from the specified JSON file. If the file is missing, returns default settings.
+    /// If the file is corrupt or contains invalid values, logs warnings and returns defaults or clamped values as appropriate.
+    /// Does not throw exceptions. If the file is corrupt, it is renamed to .bak to allow recovery.
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
     public static AppSettings Load(string path)
     {
         try
@@ -133,6 +154,13 @@ public sealed class AppSettings
         }
     }
 
+    /// <summary>
+    /// Saves the current settings to the specified JSON file. 
+    /// Creates the directory if it does not exist.
+    /// Writes to a temporary file first and then moves it to avoid leaving a corrupt file,
+    /// if the process is interrupted during writing.
+    /// </summary>
+    /// <param name="path"></param>
     public void Save(string path)
     {
         string? dir = Path.GetDirectoryName(path);
