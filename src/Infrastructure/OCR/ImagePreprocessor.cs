@@ -1,6 +1,7 @@
 namespace WarframeRelicOverlay.Infrastructure.OCR;
 
 using System.Drawing;
+using System.Drawing.Imaging;
 
 public static class ImagePreprocessor
 {

@@ -45,7 +45,6 @@ public sealed class TesseractOcrEngine : IOcrEngine, IDisposable
     }
 
     // Encodes the bitmap to BMP in memory so Tesseract can load it as a Pix.
-    // Avoids disk writes and does not require the optional Tesseract.Drawing package.
     private static Pix BitmapToPix(System.Drawing.Bitmap bitmap)
     {
         using var ms = new System.IO.MemoryStream();
@@ -61,9 +60,9 @@ public sealed class TesseractOcrEngine : IOcrEngine, IDisposable
         public TesseractEngine Create()
         {
             var engine = new TesseractEngine(tessDataPath, "eng", EngineMode.Default);
-            // Set whitelist once at creation — not on every Recognize call.
+            // Set whitelist once at creation to alphabet and digits only, improving accuracy and speed for our use case.
             engine.SetVariable("tessedit_char_whitelist",
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-&/");
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ");
             lock (lockObj) { created.Add(engine); }
             return engine;
         }
