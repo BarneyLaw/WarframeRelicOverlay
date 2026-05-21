@@ -1,6 +1,7 @@
 ﻿namespace Infrastructure.Tests;
 
 using FluentAssertions;
+using WarframeRelicOverlay.Infrastructure.Market;
 using Xunit;
 
 public class MarketSlugConverterTest

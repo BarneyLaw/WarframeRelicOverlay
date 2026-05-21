@@ -6,7 +6,7 @@ using System.Drawing.Imaging;
 public static class ImagePreprocessor
 {
     /// <summary>
-    /// Converts a raw reward-box screenshot to a clean binary bitmap suitable for Tesseract.
+    /// Converts a raw reward-box screenshot to a clean binary bitmap (Black and White) suitable for Tesseract.
     /// Uses LockBits for performance (avoids GetPixel/SetPixel), Otsu's threshold for accuracy,
     /// and inverts when needed so the output is always dark text on white background.
     /// </summary>
@@ -73,6 +73,11 @@ public static class ImagePreprocessor
         return result;
     }
 
+    /// <summary>
+    /// Implements Otsu's method to find the optimal threshold for binarization.
+    /// </summary>
+    /// <param name="pixels"></param>
+    /// <returns></returns>
     private static byte OtsuThreshold(byte[] pixels)
     {
         int[] hist = new int[256];
