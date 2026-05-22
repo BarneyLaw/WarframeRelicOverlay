@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>OverlayApp.Tests</AssemblyName>
+    <RootNamespace>WarframeRelicOverlay.Tests.OverlayApp</RootNamespace>
+    <!-- TargetFramework, Nullable, ImplicitUsings, LangVersion, AllowUnsafeBlocks
+         are set in Directory.Build.props -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\WarframeRelicOverlay.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+</Project>
