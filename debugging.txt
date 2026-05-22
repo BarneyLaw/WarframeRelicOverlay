@@ -1,0 +1,39 @@
+In xUnit, Console.WriteLine is captured and swallowed by default. There are two main approaches:
+
+1. ITestOutputHelper — the xUnit way to write visible output
+
+Inject it via the constructor and it shows up in the test runner output:
+
+
+public class WarframeMarketClientIntegrationTests : IDisposable
+{
+    private readonly ITestOutputHelper _output;
+    // ... other fields
+
+    public WarframeMarketClientIntegrationTests(ITestOutputHelper output)
+    {
+        _output = output;
+        // ... rest of setup
+    }
+
+    [Fact]
+    public async Task KnownItem_ReturnsAPrice()
+    {
+        var price = await _client.GetLowestSellPriceAsync("ash_prime_chassis_blueprint");
+        _output.WriteLine($"Returned price: {price}");   // visible in test output
+        price.Should().NotBeNull();
+    }
+}
+To actually see the output, run with:
+
+
+dotnet test --logger "console;verbosity=detailed"
+Without verbosity=detailed, even ITestOutputHelper output is only shown for failing tests.
+
+2. Breakpoints — for stepping through live
+
+In VS Code with the C# Dev Kit, click the gutter next to a line in the test file to set a breakpoint, then use the "Debug Test" codelens that appears above each [Fact]. This launches the test under the debugger and pauses at your breakpoint so you can inspect variables.
+
+If you don't have the codelens, you can also put System.Diagnostics.Debugger.Launch() at the top of a test method — it'll prompt you to attach a debugger when the test hits that line.
+
+Practical tip for integration tests: ITestOutputHelper + verbosity=detailed is usually enough since you typically just want to see what the API actually returned. Breakpoints shine when the logic is complex and you need to step through it.
