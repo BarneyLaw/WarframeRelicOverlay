@@ -25,6 +25,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="System.Drawing.Common" />
   </ItemGroup>
 
 </Project>
