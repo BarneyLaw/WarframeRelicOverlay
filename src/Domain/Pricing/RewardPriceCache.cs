@@ -16,6 +16,7 @@ public sealed class RewardPriceCache : IPriceProvider
 {
     private readonly IWarframeMarketAPI _marketApi;
     private readonly TimeSpan _ttl;
+    // thread-safe dictionary to store cached prices along with their timestamps.
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(); 
 
     private record struct CacheEntry
