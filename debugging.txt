@@ -37,3 +37,9 @@ In VS Code with the C# Dev Kit, click the gutter next to a line in the test file
 If you don't have the codelens, you can also put System.Diagnostics.Debugger.Launch() at the top of a test method — it'll prompt you to attach a debugger when the test hits that line.
 
 Practical tip for integration tests: ITestOutputHelper + verbosity=detailed is usually enough since you typically just want to see what the API actually returned. Breakpoints shine when the logic is complex and you need to step through it.
+
+
+HOW TO MAKE NEW TESTING DIRECTORY
+
+ dotnet new xunit -o tests/Application.Tests --no-restore 
+ dotnet sln add .\tests\App.Tests\App.Tests.csproj 
