@@ -27,4 +27,8 @@
     <PackageReference Include="FluentAssertions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Pricing\" />
+  </ItemGroup>
+
 </Project>
