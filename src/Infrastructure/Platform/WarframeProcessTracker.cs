@@ -28,6 +28,16 @@ public class WarframeProcessTracker : IProcessTracker
 
     private const string LogFileName = "EE.log";
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Trigger phrases for process lifecycle events in EE.log.
+    /// </summary>
+    private static readonly (string Phrase, string EventName)[] ProcessLifecycleTriggers =
+    [
+        ("===[ Entering main loop ]", "GameStarted"),
+        ("===[ Exiting main loop ]",  "GameStopped"),
+    ];
+    // This is hardcoded to source code for now, in the future we could import via json instead
  
     // ── Components ──────────────────────────────────────────────────
  
@@ -134,8 +144,9 @@ public class WarframeProcessTracker : IProcessTracker
  
         try
         {
-            _logWatcher = new FileTriggerWatcher(logPath);
+            _logWatcher = new FileTriggerWatcher(logPath, ProcessLifecycleTriggers);
             _logWatcher.OnTriggered += OnLogTrigger;
+            _logWatcher.Start();
             Debug.WriteLine($"[ProcessTracker] EE.log watcher active at: {logPath}");
         }
         catch (Exception ex)

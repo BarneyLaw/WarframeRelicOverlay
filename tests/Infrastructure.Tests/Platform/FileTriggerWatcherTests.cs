@@ -10,6 +10,16 @@ public sealed class FileTriggerWatcherTests : IDisposable
     private readonly string _tempDir;
     private readonly string _logPath;
 
+    /// <summary>
+    /// The same process-lifecycle triggers that
+    /// <see cref="WarframeProcessTracker"/> uses.
+    /// </summary>
+    private static readonly (string Phrase, string EventName)[] ProcessTriggers =
+    [
+        ("===[ Entering main loop ]", "GameStarted"),
+        ("===[ Exiting main loop ]",  "GameStopped"),
+    ];
+
     public FileTriggerWatcherTests()
     {
         _tempDir = Path.Combine(
@@ -30,14 +40,14 @@ public sealed class FileTriggerWatcherTests : IDisposable
     [Fact]
     public void Constructor_ThrowsArgumentException_ForNullPath()
     {
-        Action act = () => _ = new FileTriggerWatcher(null!);
+        Action act = () => _ = new FileTriggerWatcher(null!, ProcessTriggers);
         act.Should().Throw<ArgumentException>();
     }
 
     [Fact]
     public void Constructor_ThrowsArgumentException_ForWhitespacePath()
     {
-        Action act = () => _ = new FileTriggerWatcher("   ");
+        Action act = () => _ = new FileTriggerWatcher("   ", ProcessTriggers);
         act.Should().Throw<ArgumentException>();
     }
 
@@ -45,7 +55,24 @@ public sealed class FileTriggerWatcherTests : IDisposable
     public void Constructor_ThrowsArgumentException_WhenDirectoryDoesNotExist()
     {
         string missingDir = Path.Combine(_tempDir, "NoSuchSubDir", "EE.log");
-        Action act = () => _ = new FileTriggerWatcher(missingDir);
+        Action act = () => _ = new FileTriggerWatcher(missingDir, ProcessTriggers);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void Constructor_ThrowsArgumentNullException_WhenTriggersNull()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        Action act = () => _ = new FileTriggerWatcher(_logPath, null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Constructor_ThrowsArgumentException_WhenTriggersEmpty()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        Action act = () => _ = new FileTriggerWatcher(
+            _logPath, Array.Empty<(string, string)>());
         act.Should().Throw<ArgumentException>();
     }
 
@@ -54,9 +81,9 @@ public sealed class FileTriggerWatcherTests : IDisposable
     [Fact]
     public void OnTriggered_FiresGameStarted_WhenEnteringMainLoopLineAppended()
     {
-        // File exists and is empty — watcher starts at position 0 (end of empty file).
         File.WriteAllText(_logPath, string.Empty);
-        using var watcher = new FileTriggerWatcher(_logPath);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
 
         using var fired = new ManualResetEventSlim(false);
         string? receivedEvent = null;
@@ -73,7 +100,8 @@ public sealed class FileTriggerWatcherTests : IDisposable
     public void OnTriggered_FiresGameStopped_WhenExitingMainLoopLineAppended()
     {
         File.WriteAllText(_logPath, string.Empty);
-        using var watcher = new FileTriggerWatcher(_logPath);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
 
         using var fired = new ManualResetEventSlim(false);
         string? receivedEvent = null;
@@ -89,7 +117,8 @@ public sealed class FileTriggerWatcherTests : IDisposable
     public void OnTriggered_FiresBothEvents_WhenBothTriggersAppendedTogether()
     {
         File.WriteAllText(_logPath, string.Empty);
-        using var watcher = new FileTriggerWatcher(_logPath);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
 
         var events = new ConcurrentBag<string>();
         using var countdown = new CountdownEvent(2);
@@ -100,7 +129,7 @@ public sealed class FileTriggerWatcherTests : IDisposable
                 countdown.Signal();
         };
 
-        // Both triggers in one write so they land in the same ScanNewContent pass.
+        // Both triggers in one write so they land in the same scan pass.
         Append(
             "0.000 Script [Info]: ===[ Entering main loop ]===\n" +
             "1.000 Script [Info]: ===[ Exiting main loop ]===");
@@ -111,38 +140,62 @@ public sealed class FileTriggerWatcherTests : IDisposable
         events.Should().Contain("GameStopped");
     }
 
-    // ── Position tracking ───────────────────────────────────────────
-
     [Fact]
-    public void OnTriggered_DoesNotRefireOldContent_WhenFileExistedAtConstruction()
+    public void OnTriggered_FiresCustomTrigger()
     {
-        // Write trigger content BEFORE the watcher is created.
-        // The watcher should start at the current end of the file, skipping it.
-        File.WriteAllText(_logPath, "0.000 Script [Info]: ===[ Entering main loop ]===\n");
+        File.WriteAllText(_logPath, string.Empty);
 
-        using var watcher = new FileTriggerWatcher(_logPath);
-        bool anyFired = false;
-        watcher.OnTriggered += _ => anyFired = true;
+        var customTriggers = new (string, string)[]
+        {
+            ("GotRewards", "RewardDetected"),
+        };
 
-        Thread.Sleep(600); // Give the watcher time to miss-fire if broken.
-        anyFired.Should().BeFalse(
-            "content written before watcher construction must not produce events");
-    }
-
-    [Fact]
-    public void OnTriggered_PicksUpContent_WhenFileCreatedAfterWatcherStarts()
-    {
-        // File does not exist yet — _lastPosition will be 0.
-        // Warframe creates EE.log fresh on every launch; we simulate that.
-        Assert.False(File.Exists(_logPath));
-
-        using var watcher = new FileTriggerWatcher(_logPath);
+        using var watcher = new FileTriggerWatcher(_logPath, customTriggers);
+        watcher.Start();
 
         using var fired = new ManualResetEventSlim(false);
         string? receivedEvent = null;
         watcher.OnTriggered += name => { receivedEvent = name; fired.Set(); };
 
-        // Simulate Warframe creating the log file for the first time.
+        Append("12345.678 Sys [Info]: GotRewards");
+
+        fired.Wait(TimeSpan.FromSeconds(3))
+             .Should().BeTrue("custom trigger should fire");
+        receivedEvent.Should().Be("RewardDetected");
+    }
+
+    // ── Position tracking ───────────────────────────────────────────
+
+    [Fact]
+    public void OnTriggered_DoesNotRefireOldContent_WhenFileExistedAtStart()
+    {
+        // Write trigger content BEFORE calling Start().
+        File.WriteAllText(_logPath, "0.000 Script [Info]: ===[ Entering main loop ]===\n");
+
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+
+        bool anyFired = false;
+        watcher.OnTriggered += _ => anyFired = true;
+
+        Thread.Sleep(600);
+        anyFired.Should().BeFalse(
+            "content written before Start() must not produce events");
+    }
+
+    [Fact]
+    public void OnTriggered_PicksUpContent_WhenFileCreatedAfterStart()
+    {
+        // File does not exist yet — position will be 0.
+        Assert.False(File.Exists(_logPath));
+
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+
+        using var fired = new ManualResetEventSlim(false);
+        string? receivedEvent = null;
+        watcher.OnTriggered += name => { receivedEvent = name; fired.Set(); };
+
         File.WriteAllText(_logPath, "0.000 Script [Info]: ===[ Entering main loop ]===\n");
 
         fired.Wait(TimeSpan.FromSeconds(3))
@@ -153,39 +206,148 @@ public sealed class FileTriggerWatcherTests : IDisposable
     [Fact]
     public void OnTriggered_ResetsPosition_WhenFileShrinksBetweenScans()
     {
-        // Write non-trigger content so the watcher starts at a non-zero offset.
         File.WriteAllText(_logPath, new string('x', 500) + "\n");
-        using var watcher = new FileTriggerWatcher(_logPath);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
 
         using var fired = new ManualResetEventSlim(false);
         string? receivedEvent = null;
         watcher.OnTriggered += name => { receivedEvent = name; fired.Set(); };
 
-        // Simulate the game restarting: truncate and rewrite the log.
+        // Simulate game restart: truncate and rewrite.
         File.WriteAllText(_logPath, "0.000 Script [Info]: ===[ Entering main loop ]===\n");
 
         fired.Wait(TimeSpan.FromSeconds(3))
-             .Should().BeTrue("watcher must reset _lastPosition when file shrinks");
+             .Should().BeTrue("watcher must reset position when file shrinks");
         receivedEvent.Should().Be("GameStarted");
     }
 
-    // ── Dispose ─────────────────────────────────────────────────────
+    // ── Poll timer ──────────────────────────────────────────────────
+
+    [Fact]
+    public void PollTimer_DetectsTrigger_WhenFileSystemWatcherMightMiss()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+
+        // Use a poll interval of 100 ms for fast test feedback.
+        using var watcher = new FileTriggerWatcher(
+            _logPath, ProcessTriggers, TimeSpan.FromMilliseconds(100));
+        watcher.Start();
+
+        using var fired = new ManualResetEventSlim(false);
+        watcher.OnTriggered += _ => fired.Set();
+
+        Append("0.000 Script [Info]: ===[ Entering main loop ]===");
+
+        fired.Wait(TimeSpan.FromSeconds(2))
+             .Should().BeTrue("poll timer should catch the trigger");
+    }
+
+    // ── ScanNow ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void ScanNow_ForcesImmediateScan()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+
+        using var fired = new ManualResetEventSlim(false);
+        watcher.OnTriggered += _ => fired.Set();
+
+        Append("0.000 Script [Info]: ===[ Entering main loop ]===");
+
+        // Don't wait for the FSW — force a scan.
+        watcher.ScanNow();
+
+        fired.IsSet.Should().BeTrue("ScanNow should process pending content immediately");
+    }
+
+    // ── Lifecycle ───────────────────────────────────────────────────
+
+    [Fact]
+    public void Start_IsIdempotent()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+        Action second = () => watcher.Start();
+        second.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Stop_IsIdempotent()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Stop();
+        Action second = () => watcher.Stop();
+        second.Should().NotThrow();
+    }
+
+    [Fact]
+    public void DoesNotFire_AfterStop()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+        watcher.Stop();
+
+        bool fired = false;
+        watcher.OnTriggered += _ => fired = true;
+
+        Append("0.000 Script [Info]: ===[ Entering main loop ]===");
+        Thread.Sleep(500);
+
+        fired.Should().BeFalse("events should not fire after Stop()");
+    }
+
+    [Fact]
+    public void StopThenRestart_StillDetects()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        using var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
+        watcher.Stop();
+
+        using var fired = new ManualResetEventSlim(false);
+        watcher.OnTriggered += _ => fired.Set();
+
+        watcher.Start();
+        Append("0.000 Script [Info]: ===[ Entering main loop ]===");
+
+        fired.Wait(TimeSpan.FromSeconds(3))
+             .Should().BeTrue("watcher should detect after stop + restart");
+    }
 
     [Fact]
     public void Dispose_IsIdempotent()
     {
         File.WriteAllText(_logPath, string.Empty);
-        var watcher = new FileTriggerWatcher(_logPath);
+        var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Start();
         watcher.Dispose();
         Action second = () => watcher.Dispose();
         second.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Start_AfterDispose_Throws()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+        var watcher = new FileTriggerWatcher(_logPath, ProcessTriggers);
+        watcher.Dispose();
+
+        Action act = () => watcher.Start();
+        act.Should().Throw<ObjectDisposedException>();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────
 
     private void Append(string text)
     {
-        using var fs = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+        using var fs = new FileStream(
+            _logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
         using var sw = new StreamWriter(fs);
         sw.WriteLine(text);
     }
