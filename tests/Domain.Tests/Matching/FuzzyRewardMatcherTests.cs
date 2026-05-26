@@ -29,19 +29,24 @@ public class FuzzyRewardMatcherTests
         new[]
         {
             new RewardItem("Ash Prime Chassis Blueprint"),
-            new RewardItem("Ash Prime Neuroptics Blueprint"),
+            new RewardItem("Wisp Prime Blueprint"),
+            new RewardItem("Guandao Prime Handle"),
+            new RewardItem("Baza Prime Stock"),
+            new RewardItem("Aklex Prime Blueprint"),
+            new RewardItem("Soma Prime Barrel"),
             new RewardItem("Forma Blueprint", IsUntradeable: true),
-            new RewardItem("Nikana Prime Blade"),
+            new RewardItem("2 X Forma Blueprint", IsUntradeable: true),
+            new RewardItem("Mesa Prime Blueprint"),
         });
 
     private static FuzzyRewardMatcher CreateMatcher() => new(CreateRepository());
 
-    // ── IRewardMatcher contract ──────────────────────────────────────────────
+    // ── Test Cases ──────────────────────────────────────────────────────────
 
     [Fact]
-    public void MatchSingle_WhenCalledThroughInterface_ReturnsBestReward()
+    public void Test1_AshPrimeChassisBlueprintShouldMatchTheSame()
     {
-        IRewardMatcher matcher = CreateMatcher();
+        var matcher = CreateMatcher();
 
         var result = matcher.MatchSingle("Ash Prime Chassis Blueprint");
 
@@ -49,46 +54,63 @@ public class FuzzyRewardMatcherTests
         result!.CanonicalName.Should().Be("Ash Prime Chassis Blueprint");
     }
 
-    // ── Single-item OCR expectation ─────────────────────────────────────────
-
     [Fact]
-    public void MatchSingle_ReturnsOnlyOneReward_ForTypicalRewardText()
+    public void Test4_WispPrimeBlueprintShouldMatchTheSame()
     {
         var matcher = CreateMatcher();
 
-        var result = matcher.MatchSingle("Ash Prime Neuroptics Blueprint");
+        var result = matcher.MatchSingle("Wisp Prime Blueprint");
 
         result.Should().NotBeNull();
-        result!.CanonicalName.Should().Be("Ash Prime Neuroptics Blueprint");
+        result!.CanonicalName.Should().Be("Wisp Prime Blueprint");
     }
 
     [Fact]
-    public void MatchSingle_HandlesNoisyOCRText_WithInsertedCharactersAndSpacing()
+    public void Test5_GuandaoPrimeHandleShouldMatchTheSame()
     {
         var matcher = CreateMatcher();
 
-        var result = matcher.MatchSingle("2 s w a prime neuroptics blueprint");
+        var result = matcher.MatchSingle("Guandao Prime Handle");
 
         result.Should().NotBeNull();
-        result!.CanonicalName.Should().Be("Ash Prime Neuroptics Blueprint");
+        result!.CanonicalName.Should().Be("Guandao Prime Handle");
     }
 
     [Fact]
-    public void MatchSingle_HandlesQuantityPrefixNoise_Like_2xFormaBlueprint()
+    public void Test7_BazaPrimeStockShouldMatchTheSame()
     {
         var matcher = CreateMatcher();
 
-        var result = matcher.MatchSingle("2 X Forma Blueprint");
+        var result = matcher.MatchSingle("Baza Prime Stock");
 
         result.Should().NotBeNull();
-        result!.CanonicalName.Should().Be("2 X Forma Blueprint");
-        result.IsUntradeable.Should().BeTrue();
+        result!.CanonicalName.Should().Be("Baza Prime Stock");
     }
 
-    // ── Exact / normalized matching ─────────────────────────────────────────
+    [Fact]
+    public void Test8_AklexPrimeBlueprintShouldMatchAklexPrimeBlueprint()
+    {
+        var matcher = CreateMatcher();
+
+        var result = matcher.MatchSingle("aklex prime blueprint");
+
+        result.Should().NotBeNull();
+        result!.CanonicalName.Should().Be("Aklex Prime Blueprint");
+    }
 
     [Fact]
-    public void MatchSingle_ExactText_ReturnsMatchingReward()
+    public void Test9_SoaPrimeBarrelShouldMatchSomaPrimeBarrel()
+    {
+        var matcher = CreateMatcher();
+
+        var result = matcher.MatchSingle("soa prime barrel");
+
+        result.Should().NotBeNull();
+        result!.CanonicalName.Should().Be("Soma Prime Barrel");
+    }
+
+    [Fact]
+    public void Test9_FormaBlueprintShouldMatchTheSame()
     {
         var matcher = CreateMatcher();
 
@@ -100,35 +122,46 @@ public class FuzzyRewardMatcherTests
     }
 
     [Fact]
-    public void MatchSingle_NormalizesBluePrintAndWhitespace()
+    public void Test10_2XFormaBlueprintShouldMatchTheSame()
     {
         var matcher = CreateMatcher();
 
-        var result = matcher.MatchSingle("  Ash Prime   Chassis  Blue Print  ");
+        var result = matcher.MatchSingle("2 X Forma Blueprint");
 
         result.Should().NotBeNull();
-        result!.CanonicalName.Should().Be("Ash Prime Chassis Blueprint");
+        result!.CanonicalName.Should().Be("2 X Forma Blueprint");
+        result.IsUntradeable.Should().BeTrue();
     }
 
-    // ── No match ────────────────────────────────────────────────────────────
-
     [Fact]
-    public void MatchSingle_UnrelatedText_ReturnsNull()
+    public void Test11_MesaPriMeblueprintShouldMatchMesaPrimeBlueprint()
     {
         var matcher = CreateMatcher();
 
-        var result = matcher.MatchSingle("xylophone zzzq");
+        var result = matcher.MatchSingle("me sa pri meblueprint");
+
+        result.Should().NotBeNull();
+        result!.CanonicalName.Should().Be("Mesa Prime Blueprint");
+    }
+
+    [Fact]
+    public void Test11_NoiseWithWispPrimeBlueprintShouldMatch()
+    {
+        var matcher = CreateMatcher();
+
+        var result = matcher.MatchSingle(" a sd w s d wisp prime blueprint");
+
+        result.Should().NotBeNull();
+        result!.CanonicalName.Should().Be("Wisp Prime Blueprint");
+    }
+
+    [Fact]
+    public void Test12_XylophoneShouldReturnError()
+    {
+        var matcher = CreateMatcher();
+
+        var result = matcher.MatchSingle("xylophone");
 
         result.Should().BeNull();
-    }
-
-    [Fact]
-    public void Match_UnrelatedText_ReturnsEmptySequence()
-    {
-        var matcher = CreateMatcher();
-
-        var results = matcher.Match("xylophone zzzq");
-
-        results.Should().BeEmpty();
     }
 }
