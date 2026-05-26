@@ -1,1709 +1,1742 @@
 ﻿{
     "version":  "2025-05-19",
     "items":  {
-                  "value":  [
-                                {
-                                    "name":  "Ash Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Ash Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Ash Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Ash Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Atlas Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Atlas Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Atlas Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Atlas Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Banshee Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Banshee Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Banshee Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Banshee Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Baruuk Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Baruuk Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Baruuk Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Baruuk Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Chroma Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Chroma Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Chroma Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Chroma Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Caliban Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Caliban Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Caliban Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Caliban Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Ember Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Ember Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Ember Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Ember Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Equinox Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Equinox Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Equinox Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Equinox Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Frost Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Frost Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Frost Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Frost Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Gara Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Gara Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Gara Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Gara Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Garuda Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Garuda Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Garuda Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Garuda Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Gauss Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Gauss Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Gauss Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Gauss Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Grendel Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Grendel Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Grendel Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Grendel Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Gyre Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Gyre Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Gyre Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Gyre Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Harrow Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Harrow Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Harrow Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Harrow Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Hildryn Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Hildryn Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Hildryn Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Hildryn Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Hydroid Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Hydroid Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Hydroid Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Hydroid Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Inaros Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Inaros Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Inaros Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Inaros Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Ivara Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Ivara Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Ivara Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Ivara Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Khora Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Khora Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Khora Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Khora Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Lavos Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Lavos Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Lavos Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Lavos Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Limbo Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Limbo Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Limbo Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Limbo Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Loki Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Loki Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Loki Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Loki Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Mag Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Mag Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Mag Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Mag Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Mesa Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Mesa Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Mesa Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Mesa Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Mirage Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Mirage Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Mirage Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Mirage Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nekros Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Nekros Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Nekros Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Nekros Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nezha Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Nezha Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Nezha Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Nezha Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nidus Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Nidus Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Nidus Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Nidus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nova Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Nova Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Nova Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Nova Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nyx Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Nyx Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Nyx Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Nyx Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Oberon Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Oberon Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Oberon Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Oberon Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Octavia Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Octavia Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Octavia Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Octavia Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Protea Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Protea Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Protea Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Protea Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Revenant Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Revenant Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Revenant Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Revenant Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Rhino Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Rhino Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Rhino Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Rhino Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Saryn Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Saryn Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Saryn Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Saryn Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Sevagoth Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Sevagoth Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Sevagoth Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Sevagoth Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Titania Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Titania Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Titania Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Titania Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Trinity Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Trinity Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Trinity Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Trinity Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Valkyr Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Valkyr Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Valkyr Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Valkyr Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Vauban Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Vauban Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Vauban Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Vauban Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Volt Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Volt Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Volt Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Volt Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Wisp Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Wisp Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Wisp Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Wisp Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Wukong Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Wukong Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Wukong Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Wukong Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Xaku Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Xaku Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Xaku Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Xaku Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Yareli Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Yareli Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Yareli Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Yareli Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Zephyr Prime Chassis Blueprint"
-                                },
-                                {
-                                    "name":  "Zephyr Prime Neuroptics Blueprint"
-                                },
-                                {
-                                    "name":  "Zephyr Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Zephyr Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Acceltra Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Acceltra Prime Receiver"
-                                },
-                                {
-                                    "name":  "Acceltra Prime Stock"
-                                },
-                                {
-                                    "name":  "Acceltra Prime Barrel"
-                                },
-                                {
-                                    "name":  "Afuris Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Afuris Prime Receiver"
-                                },
-                                {
-                                    "name":  "Afuris Prime Barrel"
-                                },
-                                {
-                                    "name":  "Afuris Prime Link"
-                                },
-                                {
-                                    "name":  "Akarius Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akarius Prime Receiver"
-                                },
-                                {
-                                    "name":  "Akarius Prime Barrel"
-                                },
-                                {
-                                    "name":  "Akarius Prime Link"
-                                },
-                                {
-                                    "name":  "Akbolto Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akbolto Prime Receiver"
-                                },
-                                {
-                                    "name":  "Akbolto Prime Barrel"
-                                },
-                                {
-                                    "name":  "Akbolto Prime Link"
-                                },
-                                {
-                                    "name":  "Akbronco Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akbronco Prime Link"
-                                },
-                                {
-                                    "name":  "Akjagara Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akjagara Prime Receiver"
-                                },
-                                {
-                                    "name":  "Akjagara Prime Barrel"
-                                },
-                                {
-                                    "name":  "Akjagara Prime Link"
-                                },
-                                {
-                                    "name":  "Aklex Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Aklex Prime Link"
-                                },
-                                {
-                                    "name":  "Akmagnus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akmagnus Prime Link"
-                                },
-                                {
-                                    "name":  "Aksomati Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Aksomati Prime Receiver"
-                                },
-                                {
-                                    "name":  "Aksomati Prime Barrel"
-                                },
-                                {
-                                    "name":  "Aksomati Prime Link"
-                                },
-                                {
-                                    "name":  "Akstiletto Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akstiletto Prime Receiver"
-                                },
-                                {
-                                    "name":  "Akstiletto Prime Barrel"
-                                },
-                                {
-                                    "name":  "Akstiletto Prime Link"
-                                },
-                                {
-                                    "name":  "Akvasto Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Akvasto Prime Link"
-                                },
-                                {
-                                    "name":  "Alternox Prime Barrel"
-                                },
-                                {
-                                    "name":  "Akvasto Prime Stock"
-                                },
-                                {
-                                    "name":  "Akvasto Prime Receiver"
-                                },
-                                {
-                                    "name":  "Ankyros Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Ankyros Prime Gauntlet"
-                                },
-                                {
-                                    "name":  "Ankyros Prime Blade"
-                                },
-                                {
-                                    "name":  "Astilla Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Astilla Prime Receiver"
-                                },
-                                {
-                                    "name":  "Astilla Prime Stock"
-                                },
-                                {
-                                    "name":  "Astilla Prime Barrel"
-                                },
-                                {
-                                    "name":  "Ballistica Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Ballistica Prime Lower Limb"
-                                },
-                                {
-                                    "name":  "Ballistica Prime Upper Limb"
-                                },
-                                {
-                                    "name":  "Ballistica Prime Receiver"
-                                },
-                                {
-                                    "name":  "Ballistica Prime String"
-                                },
-                                {
-                                    "name":  "Baza Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Baza Prime Receiver"
-                                },
-                                {
-                                    "name":  "Baza Prime Stock"
-                                },
-                                {
-                                    "name":  "Baza Prime Barrel"
-                                },
-                                {
-                                    "name":  "Boar Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Boar Prime Receiver"
-                                },
-                                {
-                                    "name":  "Boar Prime Stock"
-                                },
-                                {
-                                    "name":  "Boar Prime Barrel"
-                                },
-                                {
-                                    "name":  "Bo Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Bo Prime Ornament"
-                                },
-                                {
-                                    "name":  "Bo Prime Handle"
-                                },
-                                {
-                                    "name":  "Boltor Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Boltor Prime Receiver"
-                                },
-                                {
-                                    "name":  "Boltor Prime Stock"
-                                },
-                                {
-                                    "name":  "Boltor Prime Barrel"
-                                },
-                                {
-                                    "name":  "Braton Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Braton Prime Receiver"
-                                },
-                                {
-                                    "name":  "Braton Prime Stock"
-                                },
-                                {
-                                    "name":  "Braton Prime Barrel"
-                                },
-                                {
-                                    "name":  "Bronco Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Bronco Prime Receiver"
-                                },
-                                {
-                                    "name":  "Bronco Prime Barrel"
-                                },
-                                {
-                                    "name":  "Burston Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Burston Prime Receiver"
-                                },
-                                {
-                                    "name":  "Burston Prime Stock"
-                                },
-                                {
-                                    "name":  "Burston Prime Barrel"
-                                },
-                                {
-                                    "name":  "Carrier Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Carrier Prime Carapace"
-                                },
-                                {
-                                    "name":  "Carrier Prime Cerebum"
-                                },
-                                {
-                                    "name":  "Carrier Prime Systems"
-                                },
-                                {
-                                    "name":  "Cedo Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Cedo Prime Receiver"
-                                },
-                                {
-                                    "name":  "Cedo Prime Stock"
-                                },
-                                {
-                                    "name":  "Cedo Prime Barrel"
-                                },
-                                {
-                                    "name":  "Cernos Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Cernos Prime Grip"
-                                },
-                                {
-                                    "name":  "Cernos Prime Lower Limb"
-                                },
-                                {
-                                    "name":  "Cernos Prime Upper Limb"
-                                },
-                                {
-                                    "name":  "Cernos Prime String"
-                                },
-                                {
-                                    "name":  "Cobra \u0026 Crane Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Cobra \u0026 Crane Prime Guard"
-                                },
-                                {
-                                    "name":  "Cobra \u0026 Crane Prime Blade"
-                                },
-                                {
-                                    "name":  "Cobra \u0026 Crane Prime Hilt"
-                                },
-                                {
-                                    "name":  "Corinth Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Corinth Prime Receiver"
-                                },
-                                {
-                                    "name":  "Corinth Prime Stock"
-                                },
-                                {
-                                    "name":  "Corinth Prime Barrel"
-                                },
-                                {
-                                    "name":  "Corvas Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Corvas Prime Receiver"
-                                },
-                                {
-                                    "name":  "Corvas Prime Stock"
-                                },
-                                {
-                                    "name":  "Corvas Prime Barrel"
-                                },
-                                {
-                                    "name":  "Daikyu Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Daikyu Prime Grip"
-                                },
-                                {
-                                    "name":  "Daikyu Prime Lower Limb"
-                                },
-                                {
-                                    "name":  "Daikyu Prime Upper Limb"
-                                },
-                                {
-                                    "name":  "Daikyu Prime String"
-                                },
-                                {
-                                    "name":  "Dakra Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Dakra Prime Handle"
-                                },
-                                {
-                                    "name":  "Dakra Prime Blade"
-                                },
-                                {
-                                    "name":  "Destreza Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Destreza Prime Handle"
-                                },
-                                {
-                                    "name":  "Destreza Prime Blade"
-                                },
-                                {
-                                    "name":  "Dethcube Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Dethcube Prime Carapace"
-                                },
-                                {
-                                    "name":  "Dethcube Prime Cerebum"
-                                },
-                                {
-                                    "name":  "Dethcube Prime Systems"
-                                },
-                                {
-                                    "name":  "Dual Kamas Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Dual Kamas Prime Handle"
-                                },
-                                {
-                                    "name":  "Dual Kamas Prime Blade"
-                                },
-                                {
-                                    "name":  "Dual Keres Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Dual Keres Prime Handle"
-                                },
-                                {
-                                    "name":  "Dual Keres Prime Blade"
-                                },
-                                {
-                                    "name":  "Dual Zoren Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Dual Zoren Prime Handle"
-                                },
-                                {
-                                    "name":  "Dual Zoren Prime Blade"
-                                },
-                                {
-                                    "name":  "Epitaph Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Epitaph Prime Receiver"
-                                },
-                                {
-                                    "name":  "Epitaph Prime Barrel"
-                                },
-                                {
-                                    "name":  "Euphona Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Euphona Prime Receiver"
-                                },
-                                {
-                                    "name":  "Euphona Prime Barrel"
-                                },
-                                {
-                                    "name":  "Forma Blueprint"
-                                },
-                                {
-                                    "name":  "2 X Forma Blueprint"
-                                }
-                                {
-                                    "name":  "Fang Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Fang Prime Handle"
-                                },
-                                {
-                                    "name":  "Fang Prime Blade"
-                                },
-                                {
-                                    "name":  "Fragor Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Fragor Prime Handle"
-                                },
-                                {
-                                    "name":  "Fragor Prime Head"
-                                },
-                                {
-                                    "name":  "Fulmin Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Fulmin Prime Receiver"
-                                },
-                                {
-                                    "name":  "Fulmin Prime Stock"
-                                },
-                                {
-                                    "name":  "Fulmin Prime Barrel"
-                                },
-                                {
-                                    "name":  "Galatine Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Galatine Prime Handle"
-                                },
-                                {
-                                    "name":  "Galatine Prime Blade"
-                                },
-                                {
-                                    "name":  "Glaive Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Glaive Prime Disc"
-                                },
-                                {
-                                    "name":  "Glaive Prime Blade"
-                                },
-                                {
-                                    "name":  "Gram Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Gram Prime Handle"
-                                },
-                                {
-                                    "name":  "Gram Prime Blade"
-                                },
-                                {
-                                    "name":  "Guandao Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Guandao Prime Handle"
-                                },
-                                {
-                                    "name":  "Guandao Prime Blade"
-                                },
-                                {
-                                    "name":  "Gunsen Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Gunsen Prime Handle"
-                                },
-                                {
-                                    "name":  "Gunsen Prime Blade"
-                                },
-                                {
-                                    "name":  "Helios Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Helios Prime Carapace"
-                                },
-                                {
-                                    "name":  "Helios Prime Cerebrum"
-                                },
-                                {
-                                    "name":  "Helios Prime Systems"
-                                },
-                                {
-                                    "name":  "Hikou Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Hikou Prime Pouch"
-                                },
-                                {
-                                    "name":  "Hikou Prime Stars"
-                                },
-                                {
-                                    "name":  "Hystrix Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Hystrix Prime Receiver"
-                                },
-                                {
-                                    "name":  "Hystrix Prime Barrel"
-                                },
-                                {
-                                    "name":  "Karyst Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Karyst Prime Handle"
-                                },
-                                {
-                                    "name":  "Karyst Prime Band"
-                                },
-                                {
-                                    "name":  "Karyst Prime Blade"
-                                },
-                                {
-                                    "name":  "Karyst Prime Buckle"
-                                },
-                                {
-                                    "name":  "Kavasa Prime Band"
-                                },
-                                {
-                                    "name":  "Kavasa Prime Buckle"
-                                },
-                                {
-                                    "name":  "Kavasa Prime Kubrow Collar Blueprint"
-                                },
-                                {
-                                    "name":  "Kestrel Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Kestrel Prime Blade"
-                                },
-                                {
-                                    "name":  "Kestrel Prime Grip"
-                                },
-                                {
-                                    "name":  "Knell Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Knell Prime Receiver"
-                                },
-                                {
-                                    "name":  "Knell Prime Barrel"
-                                },
-                                {
-                                    "name":  "Kogake Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Kogake Prime Boot"
-                                },
-                                {
-                                    "name":  "Kogake Prime Gauntlet"
-                                },
-                                {
-                                    "name":  "Kompressa Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Kompressa Prime Receiver"
-                                },
-                                {
-                                    "name":  "Kompressa Prime Barrel"
-                                },
-                                {
-                                    "name":  "Kronen Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Kronen Prime Blade"
-                                },
-                                {
-                                    "name":  "Kronen Prime Handle"
-                                },
-                                {
-                                    "name":  "Larkspur Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Larkspur Prime Receiver"
-                                },
-                                {
-                                    "name":  "Larkspur Prime Stock"
-                                },
-                                {
-                                    "name":  "Larkspur Prime Barrel"
-                                },
-                                {
-                                    "name":  "Latron Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Latron Prime Receiver"
-                                },
-                                {
-                                    "name":  "Latron Prime Stock"
-                                },
-                                {
-                                    "name":  "Latron Prime Barrel"
-                                },
-                                {
-                                    "name":  "Lato Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Lato Prime Receiver"
-                                },
-                                {
-                                    "name":  "Lato Prime Barrel"
-                                },
-                                {
-                                    "name":  "Lato Prime Handle"
-                                },
-                                {
-                                    "name":  "Lex Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Lex Prime Receiver"
-                                },
-                                {
-                                    "name":  "Lex Prime Barrel"
-                                },
-                                {
-                                    "name":  "Magnus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Magnus Prime Receiver"
-                                },
-                                {
-                                    "name":  "Magnus Prime Barrel"
-                                },
-                                {
-                                    "name":  "Masseter Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Masseter Prime Handle"
-                                },
-                                {
-                                    "name":  "Masseter Prime Blade"
-                                },
-                                {
-                                    "name":  "Nami Skyla Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nami Skyla Prime Handle"
-                                },
-                                {
-                                    "name":  "Nami Skyla Prime Blade"
-                                },
-                                {
-                                    "name":  "Nagantaka Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nagantaka Prime Receiver"
-                                },
-                                {
-                                    "name":  "Nagantaka Prime Stock"
-                                },
-                                {
-                                    "name":  "Nagantaka Prime Barrel"
-                                },
-                                {
-                                    "name":  "Nautilus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nautilus Prime Carapace"
-                                },
-                                {
-                                    "name":  "Nautilus Prime Cerebrum"
-                                },
-                                {
-                                    "name":  "Nautilus Prime Systems"
-                                },
-                                {
-                                    "name":  "Nikana Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Nikana Prime Handle"
-                                },
-                                {
-                                    "name":  "Nikana Prime Hilt"
-                                },
-                                {
-                                    "name":  "Ninkondi Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Ninkondi Prime Handle"
-                                },
-                                {
-                                    "name":  "Ninkondi Prime Chain"
-                                },
-                                {
-                                    "name":  "Odonata Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Odonata Prime Harness Blueprint"
-                                },
-                                {
-                                    "name":  "Odonata Prime Systems Blueprint"
-                                },
-                                {
-                                    "name":  "Odonata Prime Wings Blueprint"
-                                },
-                                {
-                                    "name":  "Okina Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Okina Prime Handle"
-                                },
-                                {
-                                    "name":  "Okina Prime Blade"
-                                },
-                                {
-                                    "name":  "Orthos Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Orthos Prime Handle"
-                                },
-                                {
-                                    "name":  "Orthos Prime Blade"
-                                },
-                                {
-                                    "name":  "Panthera Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Panthera Prime Receiver"
-                                },
-                                {
-                                    "name":  "Panthera Prime Stock"
-                                },
-                                {
-                                    "name":  "Panthera Prime Barrel"
-                                },
-                                {
-                                    "name":  "Pandero Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Pandero Prime Receiver"
-                                },
-                                {
-                                    "name":  "Pandero Prime Barrel"
-                                },
-                                {
-                                    "name":  "Pangolin Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Pangolin Prime Handle"
-                                },
-                                {
-                                    "name":  "Pangolin Prime Blade"
-                                },
-                                {
-                                    "name":  "Paris Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Paris Prime Grip"
-                                },
-                                {
-                                    "name":  "Paris Prime Lower Limb"
-                                },
-                                {
-                                    "name":  "Paris Prime Upper Limb"
-                                },
-                                {
-                                    "name":  "Paris Prime String"
-                                },
-                                {
-                                    "name":  "Phantasma Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Phantasma Prime Receiver"
-                                },
-                                {
-                                    "name":  "Phantasma Prime Stock"
-                                },
-                                {
-                                    "name":  "Phantasma Prime Barrel"
-                                },
-                                {
-                                    "name":  "Pyrana Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Pyrana Prime Receiver"
-                                },
-                                {
-                                    "name":  "Pyrana Prime Barrel"
-                                },
-                                {
-                                    "name":  "Quassus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Quassus Prime Handle"
-                                },
-                                {
-                                    "name":  "Quassus Prime Blade"
-                                },
-                                {
-                                    "name":  "Reaper Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Reaper Prime Handle"
-                                },
-                                {
-                                    "name":  "Reaper Prime Blade"
-                                },
-                                {
-                                    "name":  "Redeemer Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Redeemer Prime Handle"
-                                },
-                                {
-                                    "name":  "Redeemer Prime Blade"
-                                },
-                                {
-                                    "name":  "Rubico Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Rubico Prime Receiver"
-                                },
-                                {
-                                    "name":  "Rubico Prime Stock"
-                                },
-                                {
-                                    "name":  "Rubico Prime Barrel"
-                                },
-                                {
-                                    "name":  "Scindo Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Scindo Prime Handle"
-                                },
-                                {
-                                    "name":  "Scindo Prime Blade"
-                                },
-                                {
-                                    "name":  "Scourge Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Scourge Prime Barrel"
-                                },
-                                {
-                                    "name":  "Scourge Prime Handle"
-                                },
-                                {
-                                    "name":  "Scourge Prime Blade"
-                                },
-                                {
-                                    "name":  "Shade Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Shade Prime Carapace"
-                                },
-                                {
-                                    "name":  "Shade Prime Cerebrum"
-                                },
-                                {
-                                    "name":  "Shade Prime Systems"
-                                },
-                                {
-                                    "name":  "Sicarus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Sicarus Prime Receiver"
-                                },
-                                {
-                                    "name":  "Sicarus Prime Barrel"
-                                },
-                                {
-                                    "name":  "Silva \u0026 Aegis Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Silva \u0026 Aegis Prime Hilt"
-                                },
-                                {
-                                    "name":  "Silva \u0026 Aegis Prime Guard"
-                                },
-                                {
-                                    "name":  "Silva \u0026 Aegis Prime Blade"
-                                },
-                                {
-                                    "name":  "Soma Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Soma Prime Receiver"
-                                },
-                                {
-                                    "name":  "Soma Prime Stock"
-                                },
-                                {
-                                    "name":  "Soma Prime Barrel"
-                                },
-                                {
-                                    "name":  "Spira Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Spira Prime Blade"
-                                },
-                                {
-                                    "name":  "Spira Prime Pouch"
-                                },
-                                {
-                                    "name":  "Stradavar Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Stradavar Prime Receiver"
-                                },
-                                {
-                                    "name":  "Stradavar Prime Stock"
-                                },
-                                {
-                                    "name":  "Stradavar Prime Barrel"
-                                },
-                                {
-                                    "name":  "Strun Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Strun Prime Receiver"
-                                },
-                                {
-                                    "name":  "Strun Prime Stock"
-                                },
-                                {
-                                    "name":  "Strun Prime Barrel"
-                                },
-                                {
-                                    "name":  "Sybaris Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Sybaris Prime Receiver"
-                                },
-                                {
-                                    "name":  "Sybaris Prime Stock"
-                                },
-                                {
-                                    "name":  "Sybaris Prime Barrel"
-                                },
-                                {
-                                    "name":  "Tatsu Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tatsu Prime Handle"
-                                },
-                                {
-                                    "name":  "Tatsu Prime Blade"
-                                },
-                                {
-                                    "name":  "Tekko Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tekko Prime Gauntlet"
-                                },
-                                {
-                                    "name":  "Tekko Prime Blade"
-                                },
-                                {
-                                    "name":  "Tenora Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tenora Prime Receiver"
-                                },
-                                {
-                                    "name":  "Tenora Prime Stock"
-                                },
-                                {
-                                    "name":  "Tenora Prime Barrel"
-                                },
-                                {
-                                    "name":  "Tiberon Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tiberon Prime Receiver"
-                                },
-                                {
-                                    "name":  "Tiberon Prime Stock"
-                                },
-                                {
-                                    "name":  "Tiberon Prime Barrel"
-                                },
-                                {
-                                    "name":  "Tigris Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tigris Prime Receiver"
-                                },
-                                {
-                                    "name":  "Tigris Prime Stock"
-                                },
-                                {
-                                    "name":  "Tigris Prime Barrel"
-                                },
-                                {
-                                    "name":  "Tipedo Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Tipedo Prime Handle"
-                                },
-                                {
-                                    "name":  "Tipedo Prime Ornament"
-                                },
-                                {
-                                    "name":  "Trumna Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Trumna Prime Receiver"
-                                },
-                                {
-                                    "name":  "Trumna Prime Stock"
-                                },
-                                {
-                                    "name":  "Trumna Prime Barrel"
-                                },
-                                {
-                                    "name":  "Vadarya Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Vadarya Prime Receiver"
-                                },
-                                {
-                                    "name":  "Vadarya Prime Stock"
-                                },
-                                {
-                                    "name":  "Vadarya Prime Barrel"
-                                },
-                                {
-                                    "name":  "Vasto Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Vasto Prime Receiver"
-                                },
-                                {
-                                    "name":  "Vasto Prime Barrel"
-                                },
-                                {
-                                    "name":  "Vectis Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Vectis Prime Receiver"
-                                },
-                                {
-                                    "name":  "Vectis Prime Stock"
-                                },
-                                {
-                                    "name":  "Vectis Prime Barrel"
-                                },
-                                {
-                                    "name":  "Velox Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Velox Prime Receiver"
-                                },
-                                {
-                                    "name":  "Velox Prime Barrel"
-                                },
-                                {
-                                    "name":  "Venato Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Venato Prime Blade"
-                                },
-                                {
-                                    "name":  "Venato Prime Handle"
-                                },
-                                {
-                                    "name":  "Venka Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Venka Prime Gauntlet"
-                                },
-                                {
-                                    "name":  "Venka Prime Blades"
-                                },
-                                {
-                                    "name":  "Volnus Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Volnus Prime Handle"
-                                },
-                                {
-                                    "name":  "Volnus Prime Head"
-                                },
-                                {
-                                    "name":  "Wyrm Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Wyrm Prime Carapace"
-                                },
-                                {
-                                    "name":  "Wyrm Prime Cerebrum"
-                                },
-                                {
-                                    "name":  "Wyrm Prime Systems"
-                                },
-                                {
-                                    "name":  "Zakti Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Zakti Prime Receiver"
-                                },
-                                {
-                                    "name":  "Zakti Prime Barrel"
-                                },
-                                {
-                                    "name":  "Zhuge Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Zhuge Prime Receiver"
-                                },
-                                {
-                                    "name":  "Zhuge Prime Grip"
-                                },
-                                {
-                                    "name":  "Zhuge Prime Barrel"
-                                },
-                                {
-                                    "name":  "Zhuge Prime String"
-                                },
-                                {
-                                    "name":  "Zylok Prime Blueprint"
-                                },
-                                {
-                                    "name":  "Zylok Prime Receiver"
-                                },
-                                {
-                                    "name":  "Zylok Prime Barrel"
-                                }
-                            ],
+        "value": [
+            {
+                "name": "Ash Prime Chassis Blueprint"
+            },
+            {
+                "name": "Ash Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Ash Prime Systems Blueprint"
+            },
+            {
+                "name": "Ash Prime Blueprint"
+            },
+            {
+                "name": "Atlas Prime Chassis Blueprint"
+            },
+            {
+                "name": "Atlas Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Atlas Prime Systems Blueprint"
+            },
+            {
+                "name": "Atlas Prime Blueprint"
+            },
+            {
+                "name": "Banshee Prime Chassis Blueprint"
+            },
+            {
+                "name": "Banshee Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Banshee Prime Systems Blueprint"
+            },
+            {
+                "name": "Banshee Prime Blueprint"
+            },
+            {
+                "name": "Baruuk Prime Chassis Blueprint"
+            },
+            {
+                "name": "Baruuk Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Baruuk Prime Systems Blueprint"
+            },
+            {
+                "name": "Baruuk Prime Blueprint"
+            },
+            {
+                "name": "Chroma Prime Chassis Blueprint"
+            },
+            {
+                "name": "Chroma Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Chroma Prime Systems Blueprint"
+            },
+            {
+                "name": "Chroma Prime Blueprint"
+            },
+            {
+                "name": "Caliban Prime Chassis Blueprint"
+            },
+            {
+                "name": "Caliban Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Caliban Prime Systems Blueprint"
+            },
+            {
+                "name": "Caliban Prime Blueprint"
+            },
+            {
+                "name": "Ember Prime Chassis Blueprint"
+            },
+            {
+                "name": "Ember Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Ember Prime Systems Blueprint"
+            },
+            {
+                "name": "Ember Prime Blueprint"
+            },
+            {
+                "name": "Equinox Prime Chassis Blueprint"
+            },
+            {
+                "name": "Equinox Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Equinox Prime Systems Blueprint"
+            },
+            {
+                "name": "Equinox Prime Blueprint"
+            },
+            {
+                "name": "Frost Prime Chassis Blueprint"
+            },
+            {
+                "name": "Frost Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Frost Prime Systems Blueprint"
+            },
+            {
+                "name": "Frost Prime Blueprint"
+            },
+            {
+                "name": "Gara Prime Chassis Blueprint"
+            },
+            {
+                "name": "Gara Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Gara Prime Systems Blueprint"
+            },
+            {
+                "name": "Gara Prime Blueprint"
+            },
+            {
+                "name": "Garuda Prime Chassis Blueprint"
+            },
+            {
+                "name": "Garuda Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Garuda Prime Systems Blueprint"
+            },
+            {
+                "name": "Garuda Prime Blueprint"
+            },
+            {
+                "name": "Gauss Prime Chassis Blueprint"
+            },
+            {
+                "name": "Gauss Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Gauss Prime Systems Blueprint"
+            },
+            {
+                "name": "Gauss Prime Blueprint"
+            },
+            {
+                "name": "Grendel Prime Chassis Blueprint"
+            },
+            {
+                "name": "Grendel Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Grendel Prime Systems Blueprint"
+            },
+            {
+                "name": "Grendel Prime Blueprint"
+            },
+            {
+                "name": "Gyre Prime Chassis Blueprint"
+            },
+            {
+                "name": "Gyre Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Gyre Prime Systems Blueprint"
+            },
+            {
+                "name": "Gyre Prime Blueprint"
+            },
+            {
+                "name": "Harrow Prime Chassis Blueprint"
+            },
+            {
+                "name": "Harrow Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Harrow Prime Systems Blueprint"
+            },
+            {
+                "name": "Harrow Prime Blueprint"
+            },
+            {
+                "name": "Hildryn Prime Chassis Blueprint"
+            },
+            {
+                "name": "Hildryn Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Hildryn Prime Systems Blueprint"
+            },
+            {
+                "name": "Hildryn Prime Blueprint"
+            },
+            {
+                "name": "Hydroid Prime Chassis Blueprint"
+            },
+            {
+                "name": "Hydroid Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Hydroid Prime Systems Blueprint"
+            },
+            {
+                "name": "Hydroid Prime Blueprint"
+            },
+            {
+                "name": "Inaros Prime Chassis Blueprint"
+            },
+            {
+                "name": "Inaros Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Inaros Prime Systems Blueprint"
+            },
+            {
+                "name": "Inaros Prime Blueprint"
+            },
+            {
+                "name": "Ivara Prime Chassis Blueprint"
+            },
+            {
+                "name": "Ivara Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Ivara Prime Systems Blueprint"
+            },
+            {
+                "name": "Ivara Prime Blueprint"
+            },
+            {
+                "name": "Khora Prime Chassis Blueprint"
+            },
+            {
+                "name": "Khora Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Khora Prime Systems Blueprint"
+            },
+            {
+                "name": "Khora Prime Blueprint"
+            },
+            {
+                "name": "Lavos Prime Chassis Blueprint"
+            },
+            {
+                "name": "Lavos Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Lavos Prime Systems Blueprint"
+            },
+            {
+                "name": "Lavos Prime Blueprint"
+            },
+            {
+                "name": "Limbo Prime Chassis Blueprint"
+            },
+            {
+                "name": "Limbo Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Limbo Prime Systems Blueprint"
+            },
+            {
+                "name": "Limbo Prime Blueprint"
+            },
+            {
+                "name": "Loki Prime Chassis Blueprint"
+            },
+            {
+                "name": "Loki Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Loki Prime Systems Blueprint"
+            },
+            {
+                "name": "Loki Prime Blueprint"
+            },
+            {
+                "name": "Mag Prime Chassis Blueprint"
+            },
+            {
+                "name": "Mag Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Mag Prime Systems Blueprint"
+            },
+            {
+                "name": "Mag Prime Blueprint"
+            },
+            {
+                "name": "Mesa Prime Chassis Blueprint"
+            },
+            {
+                "name": "Mesa Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Mesa Prime Systems Blueprint"
+            },
+            {
+                "name": "Mesa Prime Blueprint"
+            },
+            {
+                "name": "Mirage Prime Chassis Blueprint"
+            },
+            {
+                "name": "Mirage Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Mirage Prime Systems Blueprint"
+            },
+            {
+                "name": "Mirage Prime Blueprint"
+            },
+            {
+                "name": "Nekros Prime Chassis Blueprint"
+            },
+            {
+                "name": "Nekros Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Nekros Prime Systems Blueprint"
+            },
+            {
+                "name": "Nekros Prime Blueprint"
+            },
+            {
+                "name": "Nezha Prime Chassis Blueprint"
+            },
+            {
+                "name": "Nezha Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Nezha Prime Systems Blueprint"
+            },
+            {
+                "name": "Nezha Prime Blueprint"
+            },
+            {
+                "name": "Nidus Prime Chassis Blueprint"
+            },
+            {
+                "name": "Nidus Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Nidus Prime Systems Blueprint"
+            },
+            {
+                "name": "Nidus Prime Blueprint"
+            },
+            {
+                "name": "Nova Prime Chassis Blueprint"
+            },
+            {
+                "name": "Nova Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Nova Prime Systems Blueprint"
+            },
+            {
+                "name": "Nova Prime Blueprint"
+            },
+            {
+                "name": "Nyx Prime Chassis Blueprint"
+            },
+            {
+                "name": "Nyx Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Nyx Prime Systems Blueprint"
+            },
+            {
+                "name": "Nyx Prime Blueprint"
+            },
+            {
+                "name": "Oberon Prime Chassis Blueprint"
+            },
+            {
+                "name": "Oberon Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Oberon Prime Systems Blueprint"
+            },
+            {
+                "name": "Oberon Prime Blueprint"
+            },
+            {
+                "name": "Octavia Prime Chassis Blueprint"
+            },
+            {
+                "name": "Octavia Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Octavia Prime Systems Blueprint"
+            },
+            {
+                "name": "Octavia Prime Blueprint"
+            },
+            {
+                "name": "Protea Prime Chassis Blueprint"
+            },
+            {
+                "name": "Protea Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Protea Prime Systems Blueprint"
+            },
+            {
+                "name": "Protea Prime Blueprint"
+            },
+            {
+                "name": "Revenant Prime Chassis Blueprint"
+            },
+            {
+                "name": "Revenant Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Revenant Prime Systems Blueprint"
+            },
+            {
+                "name": "Revenant Prime Blueprint"
+            },
+            {
+                "name": "Rhino Prime Chassis Blueprint"
+            },
+            {
+                "name": "Rhino Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Rhino Prime Systems Blueprint"
+            },
+            {
+                "name": "Rhino Prime Blueprint"
+            },
+            {
+                "name": "Saryn Prime Chassis Blueprint"
+            },
+            {
+                "name": "Saryn Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Saryn Prime Systems Blueprint"
+            },
+            {
+                "name": "Saryn Prime Blueprint"
+            },
+            {
+                "name": "Sevagoth Prime Chassis Blueprint"
+            },
+            {
+                "name": "Sevagoth Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Sevagoth Prime Systems Blueprint"
+            },
+            {
+                "name": "Sevagoth Prime Blueprint"
+            },
+            {
+                "name": "Titania Prime Chassis Blueprint"
+            },
+            {
+                "name": "Titania Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Titania Prime Systems Blueprint"
+            },
+            {
+                "name": "Titania Prime Blueprint"
+            },
+            {
+                "name": "Trinity Prime Chassis Blueprint"
+            },
+            {
+                "name": "Trinity Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Trinity Prime Systems Blueprint"
+            },
+            {
+                "name": "Trinity Prime Blueprint"
+            },
+            {
+                "name": "Valkyr Prime Chassis Blueprint"
+            },
+            {
+                "name": "Valkyr Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Valkyr Prime Systems Blueprint"
+            },
+            {
+                "name": "Valkyr Prime Blueprint"
+            },
+            {
+                "name": "Vauban Prime Chassis Blueprint"
+            },
+            {
+                "name": "Vauban Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Vauban Prime Systems Blueprint"
+            },
+            {
+                "name": "Vauban Prime Blueprint"
+            },
+            {
+                "name": "Volt Prime Chassis Blueprint"
+            },
+            {
+                "name": "Volt Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Volt Prime Systems Blueprint"
+            },
+            {
+                "name": "Volt Prime Blueprint"
+            },
+            {
+                "name": "Voruna Prime Chassis Blueprint"
+            },
+            {
+                "name": "Voruna Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Voruna Prime Systems Blueprint"
+            },
+            {
+                "name": "Voruna Prime Blueprint"
+            },
+            {
+                "name": "Wisp Prime Chassis Blueprint"
+            },
+            {
+                "name": "Wisp Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Wisp Prime Systems Blueprint"
+            },
+            {
+                "name": "Wisp Prime Blueprint"
+            },
+            {
+                "name": "Wukong Prime Chassis Blueprint"
+            },
+            {
+                "name": "Wukong Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Wukong Prime Systems Blueprint"
+            },
+            {
+                "name": "Wukong Prime Blueprint"
+            },
+            {
+                "name": "Xaku Prime Chassis Blueprint"
+            },
+            {
+                "name": "Xaku Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Xaku Prime Systems Blueprint"
+            },
+            {
+                "name": "Xaku Prime Blueprint"
+            },
+            {
+                "name": "Yareli Prime Chassis Blueprint"
+            },
+            {
+                "name": "Yareli Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Yareli Prime Systems Blueprint"
+            },
+            {
+                "name": "Yareli Prime Blueprint"
+            },
+            {
+                "name": "Zephyr Prime Chassis Blueprint"
+            },
+            {
+                "name": "Zephyr Prime Neuroptics Blueprint"
+            },
+            {
+                "name": "Zephyr Prime Systems Blueprint"
+            },
+            {
+                "name": "Zephyr Prime Blueprint"
+            },
+            {
+                "name": "Acceltra Prime Blueprint"
+            },
+            {
+                "name": "Acceltra Prime Receiver"
+            },
+            {
+                "name": "Acceltra Prime Stock"
+            },
+            {
+                "name": "Acceltra Prime Barrel"
+            },
+            {
+                "name": "Afuris Prime Blueprint"
+            },
+            {
+                "name": "Afuris Prime Receiver"
+            },
+            {
+                "name": "Afuris Prime Barrel"
+            },
+            {
+                "name": "Afuris Prime Link"
+            },
+            {
+                "name": "Akarius Prime Blueprint"
+            },
+            {
+                "name": "Akarius Prime Receiver"
+            },
+            {
+                "name": "Akarius Prime Barrel"
+            },
+            {
+                "name": "Akarius Prime Link"
+            },
+            {
+                "name": "Akbolto Prime Blueprint"
+            },
+            {
+                "name": "Akbolto Prime Receiver"
+            },
+            {
+                "name": "Akbolto Prime Barrel"
+            },
+            {
+                "name": "Akbolto Prime Link"
+            },
+            {
+                "name": "Akbronco Prime Blueprint"
+            },
+            {
+                "name": "Akbronco Prime Link"
+            },
+            {
+                "name": "Akjagara Prime Blueprint"
+            },
+            {
+                "name": "Akjagara Prime Receiver"
+            },
+            {
+                "name": "Akjagara Prime Barrel"
+            },
+            {
+                "name": "Akjagara Prime Link"
+            },
+            {
+                "name": "Aklex Prime Blueprint"
+            },
+            {
+                "name": "Aklex Prime Link"
+            },
+            {
+                "name": "Akmagnus Prime Blueprint"
+            },
+            {
+                "name": "Akmagnus Prime Link"
+            },
+            {
+                "name": "Aksomati Prime Blueprint"
+            },
+            {
+                "name": "Aksomati Prime Receiver"
+            },
+            {
+                "name": "Aksomati Prime Barrel"
+            },
+            {
+                "name": "Aksomati Prime Link"
+            },
+            {
+                "name": "Akstiletto Prime Blueprint"
+            },
+            {
+                "name": "Akstiletto Prime Receiver"
+            },
+            {
+                "name": "Akstiletto Prime Barrel"
+            },
+            {
+                "name": "Akstiletto Prime Link"
+            },
+            {
+                "name": "Akvasto Prime Blueprint"
+            },
+            {
+                "name": "Akvasto Prime Link"
+            },
+            {
+                "name": "Alternox Prime Barrel"
+            },
+            {
+                "name": "Akvasto Prime Stock"
+            },
+            {
+                "name": "Akvasto Prime Receiver"
+            },
+            {
+                "name": "Ankyros Prime Blueprint"
+            },
+            {
+                "name": "Ankyros Prime Gauntlet"
+            },
+            {
+                "name": "Ankyros Prime Blade"
+            },
+            {
+                "name": "Astilla Prime Blueprint"
+            },
+            {
+                "name": "Astilla Prime Receiver"
+            },
+            {
+                "name": "Astilla Prime Stock"
+            },
+            {
+                "name": "Astilla Prime Barrel"
+            },
+            {
+                "name": "Ballistica Prime Blueprint"
+            },
+            {
+                "name": "Ballistica Prime Lower Limb"
+            },
+            {
+                "name": "Ballistica Prime Upper Limb"
+            },
+            {
+                "name": "Ballistica Prime Receiver"
+            },
+            {
+                "name": "Ballistica Prime String"
+            },
+            {
+                "name": "Baza Prime Blueprint"
+            },
+            {
+                "name": "Baza Prime Receiver"
+            },
+            {
+                "name": "Baza Prime Stock"
+            },
+            {
+                "name": "Baza Prime Barrel"
+            },
+            {
+                "name": "Boar Prime Blueprint"
+            },
+            {
+                "name": "Boar Prime Receiver"
+            },
+            {
+                "name": "Boar Prime Stock"
+            },
+            {
+                "name": "Boar Prime Barrel"
+            },
+            {
+                "name": "Bo Prime Blueprint"
+            },
+            {
+                "name": "Bo Prime Ornament"
+            },
+            {
+                "name": "Bo Prime Handle"
+            },
+            {
+                "name": "Boltor Prime Blueprint"
+            },
+            {
+                "name": "Boltor Prime Receiver"
+            },
+            {
+                "name": "Boltor Prime Stock"
+            },
+            {
+                "name": "Boltor Prime Barrel"
+            },
+            {
+                "name": "Braton Prime Blueprint"
+            },
+            {
+                "name": "Braton Prime Receiver"
+            },
+            {
+                "name": "Braton Prime Stock"
+            },
+            {
+                "name": "Braton Prime Barrel"
+            },
+            {
+                "name": "Bronco Prime Blueprint"
+            },
+            {
+                "name": "Bronco Prime Receiver"
+            },
+            {
+                "name": "Bronco Prime Barrel"
+            },
+            {
+                "name": "Burston Prime Blueprint"
+            },
+            {
+                "name": "Burston Prime Receiver"
+            },
+            {
+                "name": "Burston Prime Stock"
+            },
+            {
+                "name": "Burston Prime Barrel"
+            },
+            {
+                "name": "Carrier Prime Blueprint"
+            },
+            {
+                "name": "Carrier Prime Carapace"
+            },
+            {
+                "name": "Carrier Prime Cerebum"
+            },
+            {
+                "name": "Carrier Prime Systems"
+            },
+            {
+                "name": "Cedo Prime Blueprint"
+            },
+            {
+                "name": "Cedo Prime Receiver"
+            },
+            {
+                "name": "Cedo Prime Stock"
+            },
+            {
+                "name": "Cedo Prime Barrel"
+            },
+            {
+                "name": "Cernos Prime Blueprint"
+            },
+            {
+                "name": "Cernos Prime Grip"
+            },
+            {
+                "name": "Cernos Prime Lower Limb"
+            },
+            {
+                "name": "Cernos Prime Upper Limb"
+            },
+            {
+                "name": "Cernos Prime String"
+            },
+            {
+                "name": "Cobra \u0026 Crane Prime Blueprint"
+            },
+            {
+                "name": "Cobra \u0026 Crane Prime Guard"
+            },
+            {
+                "name": "Cobra \u0026 Crane Prime Blade"
+            },
+            {
+                "name": "Cobra \u0026 Crane Prime Hilt"
+            },
+            {
+                "name": "Corinth Prime Blueprint"
+            },
+            {
+                "name": "Corinth Prime Receiver"
+            },
+            {
+                "name": "Corinth Prime Stock"
+            },
+            {
+                "name": "Corinth Prime Barrel"
+            },
+            {
+                "name": "Corvas Prime Blueprint"
+            },
+            {
+                "name": "Corvas Prime Receiver"
+            },
+            {
+                "name": "Corvas Prime Stock"
+            },
+            {
+                "name": "Corvas Prime Barrel"
+            },
+            {
+                "name": "Daikyu Prime Blueprint"
+            },
+            {
+                "name": "Daikyu Prime Grip"
+            },
+            {
+                "name": "Daikyu Prime Lower Limb"
+            },
+            {
+                "name": "Daikyu Prime Upper Limb"
+            },
+            {
+                "name": "Daikyu Prime String"
+            },
+            {
+                "name": "Dakra Prime Blueprint"
+            },
+            {
+                "name": "Dakra Prime Handle"
+            },
+            {
+                "name": "Dakra Prime Blade"
+            },
+            {
+                "name": "Destreza Prime Blueprint"
+            },
+            {
+                "name": "Destreza Prime Handle"
+            },
+            {
+                "name": "Destreza Prime Blade"
+            },
+            {
+                "name": "Dethcube Prime Blueprint"
+            },
+            {
+                "name": "Dethcube Prime Carapace"
+            },
+            {
+                "name": "Dethcube Prime Cerebum"
+            },
+            {
+                "name": "Dethcube Prime Systems"
+            },
+            {
+                "name": "Dual Kamas Prime Blueprint"
+            },
+            {
+                "name": "Dual Kamas Prime Handle"
+            },
+            {
+                "name": "Dual Kamas Prime Blade"
+            },
+            {
+                "name": "Dual Keres Prime Blueprint"
+            },
+            {
+                "name": "Dual Keres Prime Handle"
+            },
+            {
+                "name": "Dual Keres Prime Blade"
+            },
+            {
+                "name": "Dual Zoren Prime Blueprint"
+            },
+            {
+                "name": "Dual Zoren Prime Handle"
+            },
+            {
+                "name": "Dual Zoren Prime Blade"
+            },
+            {
+                "name": "Epitaph Prime Blueprint"
+            },
+            {
+                "name": "Epitaph Prime Receiver"
+            },
+            {
+                "name": "Epitaph Prime Barrel"
+            },
+            {
+                "name": "Euphona Prime Blueprint"
+            },
+            {
+                "name": "Euphona Prime Receiver"
+            },
+            {
+                "name": "Euphona Prime Barrel"
+            },
+            {
+                "name": "Forma Blueprint"
+            },
+            {
+                "name": "2 X Forma Blueprint"
+            },
+            {
+                "name": "Fang Prime Blueprint"
+            },
+            {
+                "name": "Fang Prime Handle"
+            },
+            {
+                "name": "Fang Prime Blade"
+            },
+            {
+                "name": "Fragor Prime Blueprint"
+            },
+            {
+                "name": "Fragor Prime Handle"
+            },
+            {
+                "name": "Fragor Prime Head"
+            },
+            {
+                "name": "Fulmin Prime Blueprint"
+            },
+            {
+                "name": "Fulmin Prime Receiver"
+            },
+            {
+                "name": "Fulmin Prime Stock"
+            },
+            {
+                "name": "Fulmin Prime Barrel"
+            },
+            {
+                "name": "Galatine Prime Blueprint"
+            },
+            {
+                "name": "Galatine Prime Handle"
+            },
+            {
+                "name": "Galatine Prime Blade"
+            },
+            {
+                "name": "Glaive Prime Blueprint"
+            },
+            {
+                "name": "Glaive Prime Disc"
+            },
+            {
+                "name": "Glaive Prime Blade"
+            },
+            {
+                "name": "Gram Prime Blueprint"
+            },
+            {
+                "name": "Gram Prime Handle"
+            },
+            {
+                "name": "Gram Prime Blade"
+            },
+            {
+                "name": "Guandao Prime Blueprint"
+            },
+            {
+                "name": "Guandao Prime Handle"
+            },
+            {
+                "name": "Guandao Prime Blade"
+            },
+            {
+                "name": "Gunsen Prime Blueprint"
+            },
+            {
+                "name": "Gunsen Prime Handle"
+            },
+            {
+                "name": "Gunsen Prime Blade"
+            },
+            {
+                "name": "Helios Prime Blueprint"
+            },
+            {
+                "name": "Helios Prime Carapace"
+            },
+            {
+                "name": "Helios Prime Cerebrum"
+            },
+            {
+                "name": "Helios Prime Systems"
+            },
+            {
+                "name": "Hikou Prime Blueprint"
+            },
+            {
+                "name": "Hikou Prime Pouch"
+            },
+            {
+                "name": "Hikou Prime Stars"
+            },
+            {
+                "name": "Hystrix Prime Blueprint"
+            },
+            {
+                "name": "Hystrix Prime Receiver"
+            },
+            {
+                "name": "Hystrix Prime Barrel"
+            },
+            {
+                "name": "Karyst Prime Blueprint"
+            },
+            {
+                "name": "Karyst Prime Handle"
+            },
+            {
+                "name": "Karyst Prime Band"
+            },
+            {
+                "name": "Karyst Prime Blade"
+            },
+            {
+                "name": "Karyst Prime Buckle"
+            },
+            {
+                "name": "Kavasa Prime Band"
+            },
+            {
+                "name": "Kavasa Prime Buckle"
+            },
+            {
+                "name": "Kavasa Prime Kubrow Collar Blueprint"
+            },
+            {
+                "name": "Kestrel Prime Blueprint"
+            },
+            {
+                "name": "Kestrel Prime Blade"
+            },
+            {
+                "name": "Kestrel Prime Grip"
+            },
+            {
+                "name": "Knell Prime Blueprint"
+            },
+            {
+                "name": "Knell Prime Receiver"
+            },
+            {
+                "name": "Knell Prime Barrel"
+            },
+            {
+                "name": "Kogake Prime Blueprint"
+            },
+            {
+                "name": "Kogake Prime Boot"
+            },
+            {
+                "name": "Kogake Prime Gauntlet"
+            },
+            {
+                "name": "Kompressa Prime Blueprint"
+            },
+            {
+                "name": "Kompressa Prime Receiver"
+            },
+            {
+                "name": "Kompressa Prime Barrel"
+            },
+            {
+                "name": "Kronen Prime Blueprint"
+            },
+            {
+                "name": "Kronen Prime Blade"
+            },
+            {
+                "name": "Kronen Prime Handle"
+            },
+            {
+                "name": "Larkspur Prime Blueprint"
+            },
+            {
+                "name": "Larkspur Prime Receiver"
+            },
+            {
+                "name": "Larkspur Prime Stock"
+            },
+            {
+                "name": "Larkspur Prime Barrel"
+            },
+            {
+                "name": "Latron Prime Blueprint"
+            },
+            {
+                "name": "Latron Prime Receiver"
+            },
+            {
+                "name": "Latron Prime Stock"
+            },
+            {
+                "name": "Latron Prime Barrel"
+            },
+            {
+                "name": "Lato Prime Blueprint"
+            },
+            {
+                "name": "Lato Prime Receiver"
+            },
+            {
+                "name": "Lato Prime Barrel"
+            },
+            {
+                "name": "Lato Prime Handle"
+            },
+            {
+                "name": "Lex Prime Blueprint"
+            },
+            {
+                "name": "Lex Prime Receiver"
+            },
+            {
+                "name": "Lex Prime Barrel"
+            },
+            {
+                "name": "Magnus Prime Blueprint"
+            },
+            {
+                "name": "Magnus Prime Receiver"
+            },
+            {
+                "name": "Magnus Prime Barrel"
+            },
+            {
+                "name": "Masseter Prime Blueprint"
+            },
+            {
+                "name": "Masseter Prime Handle"
+            },
+            {
+                "name": "Masseter Prime Blade"
+            },
+            {
+                "name": "Nami Skyla Prime Blueprint"
+            },
+            {
+                "name": "Nami Skyla Prime Handle"
+            },
+            {
+                "name": "Nami Skyla Prime Blade"
+            },
+            {
+                "name": "Nagantaka Prime Blueprint"
+            },
+            {
+                "name": "Nagantaka Prime Receiver"
+            },
+            {
+                "name": "Nagantaka Prime Stock"
+            },
+            {
+                "name": "Nagantaka Prime Barrel"
+            },
+            {
+                "name": "Nautilus Prime Blueprint"
+            },
+            {
+                "name": "Nautilus Prime Carapace"
+            },
+            {
+                "name": "Nautilus Prime Cerebrum"
+            },
+            {
+                "name": "Nautilus Prime Systems"
+            },
+            {
+                "name": "Nikana Prime Blueprint"
+            },
+            {
+                "name": "Nikana Prime Handle"
+            },
+            {
+                "name": "Nikana Prime Hilt"
+            },
+            {
+                "name": "Ninkondi Prime Blueprint"
+            },
+            {
+                "name": "Ninkondi Prime Handle"
+            },
+            {
+                "name": "Ninkondi Prime Chain"
+            },
+            {
+                "name": "Odonata Prime Blueprint"
+            },
+            {
+                "name": "Odonata Prime Harness Blueprint"
+            },
+            {
+                "name": "Odonata Prime Systems Blueprint"
+            },
+            {
+                "name": "Odonata Prime Wings Blueprint"
+            },
+            {
+                "name": "Okina Prime Blueprint"
+            },
+            {
+                "name": "Okina Prime Handle"
+            },
+            {
+                "name": "Okina Prime Blade"
+            },
+            {
+                "name": "Orthos Prime Blueprint"
+            },
+            {
+                "name": "Orthos Prime Handle"
+            },
+            {
+                "name": "Orthos Prime Blade"
+            },
+            {
+                "name": "Panthera Prime Blueprint"
+            },
+            {
+                "name": "Panthera Prime Receiver"
+            },
+            {
+                "name": "Panthera Prime Stock"
+            },
+            {
+                "name": "Panthera Prime Barrel"
+            },
+            {
+                "name": "Pandero Prime Blueprint"
+            },
+            {
+                "name": "Pandero Prime Receiver"
+            },
+            {
+                "name": "Pandero Prime Barrel"
+            },
+            {
+                "name": "Pangolin Prime Blueprint"
+            },
+            {
+                "name": "Pangolin Prime Handle"
+            },
+            {
+                "name": "Pangolin Prime Blade"
+            },
+            {
+                "name": "Paris Prime Blueprint"
+            },
+            {
+                "name": "Paris Prime Grip"
+            },
+            {
+                "name": "Paris Prime Lower Limb"
+            },
+            {
+                "name": "Paris Prime Upper Limb"
+            },
+            {
+                "name": "Paris Prime String"
+            },
+            {
+                "name": "Perigale Prime Blueprint"
+            },
+            {
+                "name": "Perigale Prime Receiver"
+            },
+            {
+                "name": "Perigale Prime Stock"
+            },
+            {
+                "name": "Perigale Prime Barrel"
+            },
+            {
+                "name": "Phantasma Prime Blueprint"
+            },
+            {
+                "name": "Phantasma Prime Receiver"
+            },
+            {
+                "name": "Phantasma Prime Stock"
+            },
+            {
+                "name": "Phantasma Prime Barrel"
+            },
+            {
+                "name": "Pyrana Prime Blueprint"
+            },
+            {
+                "name": "Pyrana Prime Receiver"
+            },
+            {
+                "name": "Pyrana Prime Barrel"
+            },
+            {
+                "name": "Quassus Prime Blueprint"
+            },
+            {
+                "name": "Quassus Prime Handle"
+            },
+            {
+                "name": "Quassus Prime Blade"
+            },
+            {
+                "name": "Reaper Prime Blueprint"
+            },
+            {
+                "name": "Reaper Prime Handle"
+            },
+            {
+                "name": "Reaper Prime Blade"
+            },
+            {
+                "name": "Redeemer Prime Blueprint"
+            },
+            {
+                "name": "Redeemer Prime Handle"
+            },
+            {
+                "name": "Redeemer Prime Blade"
+            },
+            {
+                "name": "Rubico Prime Blueprint"
+            },
+            {
+                "name": "Rubico Prime Receiver"
+            },
+            {
+                "name": "Rubico Prime Stock"
+            },
+            {
+                "name": "Rubico Prime Barrel"
+            },
+            {
+                "name": "Sarofang Prime Blueprint"
+            },
+            {
+                "name": "Sarofang Prime Handle"
+            },
+            {
+                "name": "Sarofang Prime Blade"
+            },
+            {
+                "name": "Scindo Prime Blueprint"
+            },
+            {
+                "name": "Scindo Prime Handle"
+            },
+            {
+                "name": "Scindo Prime Blade"
+            },
+            {
+                "name": "Scourge Prime Blueprint"
+            },
+            {
+                "name": "Scourge Prime Barrel"
+            },
+            {
+                "name": "Scourge Prime Handle"
+            },
+            {
+                "name": "Scourge Prime Blade"
+            },
+            {
+                "name": "Shade Prime Blueprint"
+            },
+            {
+                "name": "Shade Prime Carapace"
+            },
+            {
+                "name": "Shade Prime Cerebrum"
+            },
+            {
+                "name": "Shade Prime Systems"
+            },
+            {
+                "name": "Sicarus Prime Blueprint"
+            },
+            {
+                "name": "Sicarus Prime Receiver"
+            },
+            {
+                "name": "Sicarus Prime Barrel"
+            },
+            {
+                "name": "Silva \u0026 Aegis Prime Blueprint"
+            },
+            {
+                "name": "Silva \u0026 Aegis Prime Hilt"
+            },
+            {
+                "name": "Silva \u0026 Aegis Prime Guard"
+            },
+            {
+                "name": "Silva \u0026 Aegis Prime Blade"
+            },
+            {
+                "name": "Soma Prime Blueprint"
+            },
+            {
+                "name": "Soma Prime Receiver"
+            },
+            {
+                "name": "Soma Prime Stock"
+            },
+            {
+                "name": "Soma Prime Barrel"
+            },
+            {
+                "name": "Spira Prime Blueprint"
+            },
+            {
+                "name": "Spira Prime Blade"
+            },
+            {
+                "name": "Spira Prime Pouch"
+            },
+            {
+                "name": "Stradavar Prime Blueprint"
+            },
+            {
+                "name": "Stradavar Prime Receiver"
+            },
+            {
+                "name": "Stradavar Prime Stock"
+            },
+            {
+                "name": "Stradavar Prime Barrel"
+            },
+            {
+                "name": "Strun Prime Blueprint"
+            },
+            {
+                "name": "Strun Prime Receiver"
+            },
+            {
+                "name": "Strun Prime Stock"
+            },
+            {
+                "name": "Strun Prime Barrel"
+            },
+            {
+                "name": "Sybaris Prime Blueprint"
+            },
+            {
+                "name": "Sybaris Prime Receiver"
+            },
+            {
+                "name": "Sybaris Prime Stock"
+            },
+            {
+                "name": "Sybaris Prime Barrel"
+            },
+            {
+                "name": "Tatsu Prime Blueprint"
+            },
+            {
+                "name": "Tatsu Prime Handle"
+            },
+            {
+                "name": "Tatsu Prime Blade"
+            },
+            {
+                "name": "Tekko Prime Blueprint"
+            },
+            {
+                "name": "Tekko Prime Gauntlet"
+            },
+            {
+                "name": "Tekko Prime Blade"
+            },
+            {
+                "name": "Tenora Prime Blueprint"
+            },
+            {
+                "name": "Tenora Prime Receiver"
+            },
+            {
+                "name": "Tenora Prime Stock"
+            },
+            {
+                "name": "Tenora Prime Barrel"
+            },
+            {
+                "name": "Tiberon Prime Blueprint"
+            },
+            {
+                "name": "Tiberon Prime Receiver"
+            },
+            {
+                "name": "Tiberon Prime Stock"
+            },
+            {
+                "name": "Tiberon Prime Barrel"
+            },
+            {
+                "name": "Tigris Prime Blueprint"
+            },
+            {
+                "name": "Tigris Prime Receiver"
+            },
+            {
+                "name": "Tigris Prime Stock"
+            },
+            {
+                "name": "Tigris Prime Barrel"
+            },
+            {
+                "name": "Tipedo Prime Blueprint"
+            },
+            {
+                "name": "Tipedo Prime Handle"
+            },
+            {
+                "name": "Tipedo Prime Ornament"
+            },
+            {
+                "name": "Trumna Prime Blueprint"
+            },
+            {
+                "name": "Trumna Prime Receiver"
+            },
+            {
+                "name": "Trumna Prime Stock"
+            },
+            {
+                "name": "Trumna Prime Barrel"
+            },
+            {
+                "name": "Vadarya Prime Blueprint"
+            },
+            {
+                "name": "Vadarya Prime Receiver"
+            },
+            {
+                "name": "Vadarya Prime Stock"
+            },
+            {
+                "name": "Vadarya Prime Barrel"
+            },
+            {
+                "name": "Vasto Prime Blueprint"
+            },
+            {
+                "name": "Vasto Prime Receiver"
+            },
+            {
+                "name": "Vasto Prime Barrel"
+            },
+            {
+                "name": "Vectis Prime Blueprint"
+            },
+            {
+                "name": "Vectis Prime Receiver"
+            },
+            {
+                "name": "Vectis Prime Stock"
+            },
+            {
+                "name": "Vectis Prime Barrel"
+            },
+            {
+                "name": "Velox Prime Blueprint"
+            },
+            {
+                "name": "Velox Prime Receiver"
+            },
+            {
+                "name": "Velox Prime Barrel"
+            },
+            {
+                "name": "Venato Prime Blueprint"
+            },
+            {
+                "name": "Venato Prime Blade"
+            },
+            {
+                "name": "Venato Prime Handle"
+            },
+            {
+                "name": "Venka Prime Blueprint"
+            },
+            {
+                "name": "Venka Prime Gauntlet"
+            },
+            {
+                "name": "Venka Prime Blades"
+            },
+            {
+                "name": "Volnus Prime Blueprint"
+            },
+            {
+                "name": "Volnus Prime Handle"
+            },
+            {
+                "name": "Volnus Prime Head"
+            },
+            {
+                "name": "Wyrm Prime Blueprint"
+            },
+            {
+                "name": "Wyrm Prime Carapace"
+            },
+            {
+                "name": "Wyrm Prime Cerebrum"
+            },
+            {
+                "name": "Wyrm Prime Systems"
+            },
+            {
+                "name": "Zakti Prime Blueprint"
+            },
+            {
+                "name": "Zakti Prime Receiver"
+            },
+            {
+                "name": "Zakti Prime Barrel"
+            },
+            {
+                "name": "Zhuge Prime Blueprint"
+            },
+            {
+                "name": "Zhuge Prime Receiver"
+            },
+            {
+                "name": "Zhuge Prime Grip"
+            },
+            {
+                "name": "Zhuge Prime Barrel"
+            },
+            {
+                "name": "Zhuge Prime String"
+            },
+            {
+                "name": "Zylok Prime Blueprint"
+            },
+            {
+                "name": "Zylok Prime Receiver"
+            },
+            {
+                "name": "Zylok Prime Barrel"
+            }
+        ],
                   "Count":  566
               }
 }
