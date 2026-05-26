@@ -13,7 +13,7 @@ public sealed class MarketSlugConverter
         if (itemName.Contains("&", StringComparison.OrdinalIgnoreCase))
             return itemName.Replace("&", "and").Replace(" ", "_").ToLower().Trim();
 
-                // 2x forma will be hardcoded since it does not follow any patterns
+        // 2x forma will be hardcoded since it does not follow any patterns
         // and it is not tradeable
         if (itemName.Equals("2x Forma Blueprint", StringComparison.OrdinalIgnoreCase))
             return "forma_blueprint";    
