@@ -46,9 +46,6 @@
       <Link>tessdata\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
-  <ItemGroup>
-    <None Include=".github\copilot-instructions.md" />
-  </ItemGroup>
 
   <!-- NuGet packages — versions are managed centrally in Directory.Packages.props -->
   <ItemGroup>
