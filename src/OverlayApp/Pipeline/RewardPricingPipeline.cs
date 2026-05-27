@@ -27,7 +27,7 @@ using WarframeRelicOverlay.OverlayApp.Layout;
 /// machine ensures only one pipeline execution runs at a time.
 /// </summary>
 
-public sealed class RewardPricingPipeline
+public sealed class RewardPricingPipeline : IRewardPipeline
 {
     private readonly IScreenCapturer _capturer;
     private readonly IRewardLayoutDetector _layoutDetector;
