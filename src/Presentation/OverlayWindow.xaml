@@ -19,6 +19,29 @@
              children are placed via Canvas.Left / Canvas.Top. -->
         <Canvas x:Name="LabelCanvas" />
 
+        <!-- Overlay active badge -->
+        <Border HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,14,14,0"
+                Background="#B312171F"
+                BorderBrush="#CC7AE082"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="10,6">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="●"
+                           FontSize="13"
+                           Foreground="#7AE082"
+                           Margin="0,0,6,0"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="Overlay On"
+                           FontSize="11"
+                           FontWeight="SemiBold"
+                           Foreground="#E7F7E9"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
         <!-- Loading spinner overlaid above the reward area. Hidden by
              default; toggled by the WpfOverlayOutput. -->
         <Grid x:Name="SpinnerHost"

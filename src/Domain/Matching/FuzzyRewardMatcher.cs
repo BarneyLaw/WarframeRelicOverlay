@@ -83,9 +83,9 @@ namespace WarframeRelicOverlay.Domain.Matching
                 || IsFormaBlueprint(bestMatch.CanonicalName);
 
             return TryExtractQuantityPrefix(ocrText, out string? prefix)
-                ? new RewardItem($"{prefix}{bestMatch.CanonicalName}", isUntradeable)
+                ? new RewardItem($"{prefix}{bestMatch.CanonicalName}", IsUntradeable: isUntradeable)
                 : (isUntradeable && !bestMatch.IsUntradeable
-                    ? new RewardItem(bestMatch.CanonicalName, isUntradeable: true)
+                    ? new RewardItem(bestMatch.CanonicalName, IsUntradeable: true)
                     : bestMatch);
         }
 

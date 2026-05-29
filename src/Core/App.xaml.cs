@@ -185,6 +185,7 @@ public partial class App : Application
         // thread and gets wired into the WpfOverlayOutput before any
         // pipeline result arrives.
         _overlayWindow = _services.GetRequiredService<OverlayWindow>();
+        _overlayWindow.Show();
         _ = _services.GetRequiredService<IOverlayOutput>();
 
         // Build the coordinator and start everything.  Order matters:
