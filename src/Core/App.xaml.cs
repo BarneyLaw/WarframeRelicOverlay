@@ -196,6 +196,12 @@ public partial class App : Application
         // running, the coordinator hasn't subscribed yet, and the
         // WarframeStarted trigger never reaches the state machine.
         _coordinator = _services.GetRequiredService<OverlayCoordinator>();
+
+        // Detector self-check — written before Start() so it lands
+        // even if the detector throws during start-up.
+        var detector = _services.GetRequiredService<IRewardScreenDetector>();
+        LogDetectorSelfCheck(_logger, detector);
+
         _coordinator.Start();
 
         var processTracker = _services.GetRequiredService<IProcessTracker>();
@@ -268,7 +274,7 @@ public partial class App : Application
         switch (settings.DetectionMode)
         {
             case "EELog":
-                return new LogFileDetector(settings);
+                return new LogFileDetector(settings, logger);
 
             case "OCR":
                 return new OcrFallbackDetector(
@@ -282,7 +288,36 @@ public partial class App : Application
                 logger.LogWarning(
                     $"DetectionMode '{settings.DetectionMode}' is not supported in this build. " +
                     "Falling back to EELog.");
-                return new LogFileDetector(settings);
+                return new LogFileDetector(settings, logger);
+        }
+    }
+
+    /// <summary>
+    /// Writes a startup self-check line for the active reward-screen
+    /// detector.  For <see cref="LogFileDetector"/> this includes the
+    /// resolved EE.log path, whether the file currently exists, and
+    /// its size — by far the most useful diagnostic for "the overlay
+    /// is running but never sees a reward screen".
+    /// </summary>
+    private static void LogDetectorSelfCheck(ILogger logger, IRewardScreenDetector detector)
+    {
+        if (detector is LogFileDetector logDetector)
+        {
+            string path = logDetector.LogPath;
+            bool exists = File.Exists(path);
+            long size = exists ? new FileInfo(path).Length : 0;
+
+            logger.LogInfo(
+                $"Reward-screen detector = LogFileDetector. " +
+                $"EE.log path: '{path}' (exists={exists}, sizeBytes={size}). " +
+                "Overlay will fire when the line 'GotRewards' is appended to this file. " +
+                "Open the file after a relic mission and search for 'GotRewards' to verify.");
+        }
+        else
+        {
+            logger.LogInfo(
+                $"Reward-screen detector = {detector.GetType().Name} " +
+                $"(IsDefinitive={detector.IsDefinitive}).");
         }
     }
 

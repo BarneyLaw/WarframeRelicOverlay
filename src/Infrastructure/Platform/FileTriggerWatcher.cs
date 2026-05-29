@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using WarframeRelicOverlay.Infrastructure.Logging;
 
 /// <summary>
 /// Watches a file for appended content and fires an event whenever a
@@ -22,7 +23,7 @@ using System.Threading;
 ///   the <see cref="FileSystemWatcher"/> may coalesce or miss (buffer
 ///   overflow, network paths, permissions).  Disabled by default;
 ///   enable by passing a <paramref name="pollInterval"/> to
-///   <see cref="FileTriggerWatcher(string, IReadOnlyList{ValueTuple{string, string}}, TimeSpan?)"/>.
+///   <see cref="FileTriggerWatcher(string, IReadOnlyList{ValueTuple{string, string}}, TimeSpan?, ILogger?)"/>.
 ///
 /// Lifecycle: call <see cref="Start"/> to begin monitoring,
 /// <see cref="Stop"/> to pause, <see cref="Dispose"/> to release.
@@ -41,6 +42,7 @@ public sealed class FileTriggerWatcher : IDisposable
     private readonly string _filePath;
     private readonly IReadOnlyList<(string Phrase, string EventName)> _triggers;
     private readonly TimeSpan? _pollInterval;
+    private readonly ILogger? _logger;
 
     // ── State ─────────────────────────────────────────────────────
 
@@ -60,6 +62,14 @@ public sealed class FileTriggerWatcher : IDisposable
     /// the matching trigger entry.
     /// </summary>
     public event Action<string>? OnTriggered;
+
+    // ── Public surface ────────────────────────────────────────────
+
+    /// <summary>
+    /// Resolved absolute path of the file being watched.  Useful for
+    /// startup self-checks that want to display the path.
+    /// </summary>
+    public string FilePath => _filePath;
 
     // ── Construction ──────────────────────────────────────────────
 
@@ -83,6 +93,11 @@ public sealed class FileTriggerWatcher : IDisposable
     /// events.  Pass <c>null</c> (default) to rely solely on the
     /// <see cref="FileSystemWatcher"/>.
     /// </param>
+    /// <param name="logger">
+    /// Optional logger used to record diagnostic information about
+    /// the watcher's activity (file reads, trigger matches, errors).
+    /// When <c>null</c>, only <see cref="Debug"/> trace is written.
+    /// </param>
     /// <exception cref="ArgumentException">
     /// <paramref name="filePath"/> is null/empty or its directory
     /// does not exist.
@@ -96,7 +111,8 @@ public sealed class FileTriggerWatcher : IDisposable
     public FileTriggerWatcher(
         string filePath,
         IReadOnlyList<(string Phrase, string EventName)> triggers,
-        TimeSpan? pollInterval = null)
+        TimeSpan? pollInterval = null,
+        ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(filePath))
             throw new ArgumentException(
@@ -117,6 +133,7 @@ public sealed class FileTriggerWatcher : IDisposable
         _filePath     = filePath;
         _triggers     = triggers;
         _pollInterval = pollInterval;
+        _logger       = logger;
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────
@@ -156,6 +173,11 @@ public sealed class FileTriggerWatcher : IDisposable
         }
 
         Debug.WriteLine($"[FileTriggerWatcher] Started for: {_filePath}");
+        _logger?.LogInfo(
+            $"FileTriggerWatcher started: path='{_filePath}', " +
+            $"existingBytes={_lastPosition}, " +
+            $"pollInterval={(_pollInterval?.TotalMilliseconds ?? 0):F0}ms, " +
+            $"triggers=[{string.Join(", ", FormatTriggers())}]");
     }
 
     /// <summary>
@@ -173,6 +195,7 @@ public sealed class FileTriggerWatcher : IDisposable
         DisposeFileWatcher();
 
         Debug.WriteLine("[FileTriggerWatcher] Stopped.");
+        _logger?.LogInfo($"FileTriggerWatcher stopped: path='{_filePath}'");
     }
 
     /// <inheritdoc />
@@ -204,6 +227,9 @@ public sealed class FileTriggerWatcher : IDisposable
             Debug.WriteLine(
                 $"[FileTriggerWatcher] Directory '{directory}' not found. " +
                 "Relying on poll timer only.");
+            _logger?.LogWarning(
+                $"FileTriggerWatcher directory '{directory}' not found. " +
+                "Relying on poll timer only.");
             return;
         }
 
@@ -228,6 +254,9 @@ public sealed class FileTriggerWatcher : IDisposable
             Debug.WriteLine(
                 $"[FileTriggerWatcher] FileSystemWatcher failed " +
                 $"({ex.Message}). Relying on poll timer only.");
+            _logger?.LogWarning(
+                $"FileTriggerWatcher FileSystemWatcher init failed: {ex.Message}. " +
+                "Relying on poll timer only.");
             _fileWatcher = null;
         }
     }
@@ -263,6 +292,9 @@ public sealed class FileTriggerWatcher : IDisposable
             _lastPosition = 0;
         }
 
+        _logger?.LogInfo(
+            $"FileTriggerWatcher saw 'Created' event for '{_filePath}' — " +
+            "resetting read position to 0 (file was truncated or recreated).");
         ScanNewContent();
     }
 
@@ -271,6 +303,8 @@ public sealed class FileTriggerWatcher : IDisposable
         Debug.WriteLine(
             $"[FileTriggerWatcher] Watcher error: " +
             $"{e.GetException().Message}");
+        _logger?.LogError(
+            "FileTriggerWatcher OS watcher error.", e.GetException());
 
         try
         {
@@ -310,29 +344,56 @@ public sealed class FileTriggerWatcher : IDisposable
 
                 // File shrank → game restarted and truncated the log.
                 if (stream.Length < _lastPosition)
+                {
+                    _logger?.LogInfo(
+                        $"FileTriggerWatcher saw file shrink " +
+                        $"({_lastPosition} -> {stream.Length} bytes); " +
+                        "resetting read position to 0.");
                     _lastPosition = 0;
+                }
 
                 if (stream.Length <= _lastPosition)
                     return;
 
+                long startPosition = _lastPosition;
                 stream.Seek(_lastPosition, SeekOrigin.Begin);
                 using var reader = new StreamReader(stream);
                 string newContent = reader.ReadToEnd();
                 _lastPosition = stream.Position;
 
+                long bytesRead = _lastPosition - startPosition;
+                _logger?.LogInfo(
+                    $"FileTriggerWatcher read {bytesRead} new bytes from " +
+                    $"'{_filePath}' (position {startPosition} -> {_lastPosition}).");
+
                 foreach (var (phrase, eventName) in _triggers)
                 {
-                    if (newContent.Contains(phrase, StringComparison.Ordinal))
+                    bool found = newContent.Contains(phrase, StringComparison.Ordinal);
+                    _logger?.LogInfo(
+                        $"FileTriggerWatcher scan: phrase='{phrase}' " +
+                        $"event='{eventName}' found={found}");
+
+                    if (found)
                     {
                         OnTriggered?.Invoke(eventName);
                     }
                 }
             }
-            catch (IOException)
+            catch (IOException ex)
             {
                 // File locked by the game engine — we'll catch it on
                 // the next watcher event or poll tick.
+                _logger?.LogWarning(
+                    $"FileTriggerWatcher read failed (will retry): {ex.Message}");
             }
         }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────
+
+    private IEnumerable<string> FormatTriggers()
+    {
+        foreach (var (phrase, eventName) in _triggers)
+            yield return $"{eventName}<-'{phrase}'";
     }
 }
