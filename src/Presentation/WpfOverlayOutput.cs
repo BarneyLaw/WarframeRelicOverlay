@@ -3,9 +3,11 @@ namespace WarframeRelicOverlay.Presentation;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Windows;
 using System.Windows.Threading;
 using WarframeRelicOverlay.Core;
+using WarframeRelicOverlay.Domain.Models;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
@@ -76,11 +78,59 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
     private readonly object _lock = new();
     private PipelineResult? _lastResult;
     private WindowSnapshot? _lastSnapshot;
-    private bool _manualShown;
+
+    /// <summary>
+    /// Force the overlay window to behave as if the user had
+    /// permanently pressed the manual-show hotkey.  Bypasses the
+    /// state-machine-driven visibility logic so the overlay stays on
+    /// as long as Warframe is the foreground window.
+    ///
+    /// <para>
+    /// Used as a temporary workaround while the EE.log trigger
+    /// phrase that fires the reward-screen state transition is being
+    /// identified.  Set to <c>false</c> to restore normal
+    /// state-driven visibility.
+    /// </para>
+    /// </summary>
+    private const bool ForceAlwaysShown = true;
+
+    private bool _manualShown = ForceAlwaysShown;
     private bool _isVisible;
     private bool _spinnerVisible;
     private DispatcherTimer? _trackerTimer;
     private bool _disposed;
+
+    // ── Demo mode ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// While <c>true</c>, every <see cref="ToggleManualShown"/> call
+    /// also pushes (or clears) a synthetic four-card pipeline result
+    /// so the overlay renders sample price cards (15p, 20p, 45p, 120p)
+    /// without a real relic mission.  Lets the user preview the UI
+    /// while reward-screen detection is being debugged.  Set to
+    /// <c>false</c> to restore real-only rendering.
+    /// </summary>
+    private const bool UseDemoPrices = true;
+
+    /// <summary>
+    /// Sample platinum prices used by <see cref="PushDemoResult"/>.
+    /// The last value is intentionally the highest so the
+    /// best-price highlight border is visually verifiable.
+    /// </summary>
+    private static readonly int[] DemoPrices = [15, 20, 45, 120];
+
+    /// <summary>
+    /// Display names for the synthetic demo cards.  Used as the
+    /// <see cref="RewardItem.CanonicalName"/> so future enhancements
+    /// (subtitle, ducat lookup) have something realistic to work with.
+    /// </summary>
+    private static readonly string[] DemoNames =
+    [
+        "Forma Blueprint",
+        "Nagantaka Prime Receiver",
+        "Hydroid Prime Chassis Blueprint",
+        "Baruuk Prime Chassis Blueprint",
+    ];
 
     // ── Construction ────────────────────────────────────────────────
 
@@ -179,11 +229,37 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
     /// overlay window appears regardless of the pipeline state, as
     /// long as Warframe is the foreground window and a valid
     /// <see cref="WindowSnapshot"/> is available.
+    ///
+    /// <para>
+    /// While <see cref="ForceAlwaysShown"/> is <c>true</c> the manual
+    /// flag stays pinned to <c>true</c> regardless of hotkey presses,
+    /// so the overlay never flickers off due to a stray keypress.
+    /// </para>
+    ///
+    /// <para>
+    /// While <see cref="UseDemoPrices"/> is <c>true</c> the toggle
+    /// also pushes (or clears) a synthetic four-card pipeline result
+    /// so the overlay renders sample price cards even when EE.log
+    /// reward detection is non-functional.  Useful for previewing the
+    /// UI without a relic mission.
+    /// </para>
     /// </summary>
     public void ToggleManualShown()
     {
-        lock (_lock) { _manualShown = !_manualShown; }
-        _logger.LogInfo($"Manual overlay shown = {_manualShown}");
+        bool nowShown;
+        lock (_lock)
+        {
+            _manualShown = ForceAlwaysShown || !_manualShown;
+            nowShown = _manualShown;
+        }
+
+        if (UseDemoPrices)
+        {
+            if (nowShown) PushDemoResult();
+            else lock (_lock) { _lastResult = null; }
+        }
+
+        _logger.LogInfo($"Manual overlay shown = {nowShown}");
         InvokeOnUi(() => ApplyVisibility());
     }
 
