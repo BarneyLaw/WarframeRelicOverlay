@@ -1,5 +1,6 @@
 namespace WarframeRelicOverlay.Infrastructure.Platform;
 
+using System;
 using System.Runtime.InteropServices;
 
 /// <summary>
@@ -16,15 +17,25 @@ internal static partial class Win32Interop
     internal const int WS_EX_LAYERED     = 0x00080000;
     internal const int WS_EX_TOOLWINDOW  = 0x00000080;
 
-    // ── Hotkey ──────────────────────────────────────────────────────
-
-    internal const uint MOD_ALT      = 0x0001;
-    internal const uint MOD_CONTROL  = 0x0002;
-    internal const uint MOD_SHIFT    = 0x0004;
-    internal const uint MOD_WIN      = 0x0008;
-    internal const uint MOD_NOREPEAT = 0x4000;
+    // ── Window messages ─────────────────────────────────────────────
 
     internal const int WM_HOTKEY = 0x0312;
+
+    // ── Hotkey modifier flags ───────────────────────────────────────
+
+    /// <summary>
+    /// Modifier flag bitmap accepted by <see cref="RegisterHotKey"/>.
+    /// Values match the Win32 <c>MOD_*</c> constants.
+    /// </summary>
+    [Flags]
+    internal enum HotkeyModifiers : uint
+    {
+        None = 0x0000,
+        Alt = 0x0001,
+        Ctrl = 0x0002,
+        Shift = 0x0004,
+        Win = 0x0008,
+    }
 
     // ── Structs ─────────────────────────────────────────────────────
 
@@ -38,6 +49,13 @@ internal static partial class Win32Interop
 
         public readonly int Width  => Right - Left;
         public readonly int Height => Bottom - Top;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
     }
 
     // ── DPI awareness ───────────────────────────────────────────────
@@ -56,6 +74,8 @@ internal static partial class Win32Interop
         MDT_RAW_DPI       = 2,
     }
 
+    internal const uint MONITOR_DEFAULTTONEAREST = 2;
+
     // ── P/Invoke: window geometry ───────────────────────────────────
 
     [LibraryImport("user32.dll")]
@@ -70,17 +90,21 @@ internal static partial class Win32Interop
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ClientToScreen(nint hWnd, ref POINT lpPoint);
 
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct POINT
-    {
-        public int X;
-        public int Y;
-    }
-
     // ── P/Invoke: foreground / focus ────────────────────────────────
 
     [LibraryImport("user32.dll")]
     internal static partial nint GetForegroundWindow();
+
+    // ── P/Invoke: global hotkeys ────────────────────────────────────
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool RegisterHotKey(
+        nint hWnd, int id, uint fsModifiers, uint vk);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UnregisterHotKey(nint hWnd, int id);
 
     // ── P/Invoke: window style (click-through toggle) ───────────────
 
@@ -89,16 +113,6 @@ internal static partial class Win32Interop
 
     [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
     internal static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
-
-    // ── P/Invoke: hotkeys ───────────────────────────────────────────
-
-    [LibraryImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
-
-    [LibraryImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool UnregisterHotKey(nint hWnd, int id);
 
     // ── P/Invoke: DPI ───────────────────────────────────────────────
 
@@ -111,8 +125,6 @@ internal static partial class Win32Interop
 
     [LibraryImport("user32.dll")]
     internal static partial nint MonitorFromWindow(nint hWnd, uint dwFlags);
-
-    internal const uint MONITOR_DEFAULTTONEAREST = 2;
 
     // ── Helpers ─────────────────────────────────────────────────────
 

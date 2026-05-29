@@ -33,9 +33,6 @@ public partial class OverlayWindow : Window
 {
     // ── State ───────────────────────────────────────────────────────
 
-    /// <summary>WS_EX_TOOLWINDOW — hides the window from Alt-Tab.</summary>
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-
     private readonly List<UIElement> _priceLabels = [];
     private Storyboard? _spinnerStoryboard;
 
@@ -74,7 +71,7 @@ public partial class OverlayWindow : Window
         nint newStyle = exStyle
             | Win32Interop.WS_EX_LAYERED
             | Win32Interop.WS_EX_TRANSPARENT
-            | WS_EX_TOOLWINDOW;
+            | Win32Interop.WS_EX_TOOLWINDOW;
 
         Win32Interop.SetWindowLongPtr(
             hwnd, Win32Interop.GWL_EXSTYLE, newStyle);

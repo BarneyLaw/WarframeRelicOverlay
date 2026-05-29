@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using WarframeRelicOverlay.Infrastructure.Logging;
+using WarframeRelicOverlay.Infrastructure.Platform;
 
 /// <summary>
 /// Registers a single global hotkey via the Win32
@@ -29,26 +30,18 @@ using WarframeRelicOverlay.Infrastructure.Logging;
 /// </summary>
 public sealed class HotkeyManager : IDisposable
 {
-    // ── Win32 ───────────────────────────────────────────────────────
+    // ── Configuration ───────────────────────────────────────────────
 
-    private const int WM_HOTKEY = 0x0312;
+    /// <summary>
+    /// Default hotkey used when the configured value is null, empty,
+    /// whitespace, or fails to parse.
+    /// </summary>
+    private const string DefaultCombo = "Shift+F9";
 
-    [Flags]
-    private enum Modifiers : uint
-    {
-        None = 0x0000,
-        Alt = 0x0001,
-        Ctrl = 0x0002,
-        Shift = 0x0004,
-        Win = 0x0008,
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool UnregisterHotKey(nint hWnd, int id);
-
+    /// <summary>
+    /// Win32 hotkey registration ID.  A single overlay needs only one
+    /// hotkey, so a hardcoded identifier is sufficient.
+    /// </summary>
     private const int HotkeyId = 0xB337;
 
     // ── State ───────────────────────────────────────────────────────
@@ -74,27 +67,28 @@ public sealed class HotkeyManager : IDisposable
         _window = window ?? throw new ArgumentNullException(nameof(window));
         _onPressed = onPressed ?? throw new ArgumentNullException(nameof(onPressed));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _configuredCombo = string.IsNullOrWhiteSpace(combo) ? "Shift+F9" : combo!;
+        _configuredCombo = string.IsNullOrWhiteSpace(combo) ? DefaultCombo : combo!;
     }
 
     // ── Public API ──────────────────────────────────────────────────
 
     /// <summary>
     /// Parses the configured combo and registers it with Windows.
-    /// Falls back to <c>Shift+F9</c> on parse failure.  Logs and
-    /// continues if Windows refuses the registration (already owned
-    /// by another process).
+    /// Falls back to <see cref="DefaultCombo"/> on parse failure.
+    /// Logs and continues if Windows refuses the registration (the
+    /// combo is already owned by another process).
     /// </summary>
     public void TryRegister()
     {
         if (_registered || _disposed) return;
 
-        if (!TryParseCombo(_configuredCombo, out Modifiers modifiers, out uint vk))
+        if (!TryParseCombo(_configuredCombo, out var modifiers, out uint vk))
         {
             _logger.LogWarning(
-                $"Could not parse ToggleHotkey '{_configuredCombo}'. Falling back to 'Shift+F9'.");
+                $"Could not parse ToggleHotkey '{_configuredCombo}'. " +
+                $"Falling back to '{DefaultCombo}'.");
 
-            if (!TryParseCombo("Shift+F9", out modifiers, out vk))
+            if (!TryParseCombo(DefaultCombo, out modifiers, out vk))
                 return; // Genuinely impossible, but be defensive.
         }
 
@@ -106,7 +100,7 @@ public sealed class HotkeyManager : IDisposable
             return;
         }
 
-        if (!RegisterHotKey(hwnd, HotkeyId, (uint)modifiers, vk))
+        if (!Win32Interop.RegisterHotKey(hwnd, HotkeyId, (uint)modifiers, vk))
         {
             int err = Marshal.GetLastWin32Error();
             _logger.LogWarning(
@@ -133,20 +127,7 @@ public sealed class HotkeyManager : IDisposable
 
         try
         {
-            _window.Dispatcher.Invoke(() =>
-            {
-                if (_registered && _hwndSource is not null)
-                {
-                    UnregisterHotKey(_hwndSource.Handle, HotkeyId);
-                    _registered = false;
-                }
-
-                if (_hwndSource is not null)
-                {
-                    _hwndSource.RemoveHook(OnWindowProc);
-                    _hwndSource = null;
-                }
-            });
+            _window.Dispatcher.Invoke(ReleaseHotkey);
         }
         catch (Exception ex)
         {
@@ -172,13 +153,35 @@ public sealed class HotkeyManager : IDisposable
     }
 
     /// <summary>
+    /// Tears down the HwndSource hook and unregisters the hotkey.
+    /// Must be called on the UI thread.
+    /// </summary>
+    private void ReleaseHotkey()
+    {
+        if (_registered && _hwndSource is not null)
+        {
+            Win32Interop.UnregisterHotKey(_hwndSource.Handle, HotkeyId);
+            _registered = false;
+        }
+
+        if (_hwndSource is not null)
+        {
+            _hwndSource.RemoveHook(OnWindowProc);
+            _hwndSource = null;
+        }
+    }
+
+    /// <summary>
     /// Wndproc hook that catches WM_HOTKEY and fires the callback.
     /// </summary>
     private nint OnWindowProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
-        if (msg == WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        if (msg == Win32Interop.WM_HOTKEY && wParam.ToInt32() == HotkeyId)
         {
-            try { _onPressed(); }
+            try
+            {
+                _onPressed();
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[HotkeyManager] Callback threw: {ex.Message}");
@@ -195,9 +198,10 @@ public sealed class HotkeyManager : IDisposable
     /// key code.  Returns <c>false</c> for null/empty input or any
     /// invalid token.
     /// </summary>
-    private static bool TryParseCombo(string? combo, out Modifiers modifiers, out uint vk)
+    private static bool TryParseCombo(
+        string? combo, out Win32Interop.HotkeyModifiers modifiers, out uint vk)
     {
-        modifiers = Modifiers.None;
+        modifiers = Win32Interop.HotkeyModifiers.None;
         vk = 0;
 
         if (string.IsNullOrWhiteSpace(combo)) return false;
@@ -213,17 +217,17 @@ public sealed class HotkeyManager : IDisposable
             {
                 case "ctrl":
                 case "control":
-                    modifiers |= Modifiers.Ctrl;
+                    modifiers |= Win32Interop.HotkeyModifiers.Ctrl;
                     break;
                 case "shift":
-                    modifiers |= Modifiers.Shift;
+                    modifiers |= Win32Interop.HotkeyModifiers.Shift;
                     break;
                 case "alt":
-                    modifiers |= Modifiers.Alt;
+                    modifiers |= Win32Interop.HotkeyModifiers.Alt;
                     break;
                 case "win":
                 case "windows":
-                    modifiers |= Modifiers.Win;
+                    modifiers |= Win32Interop.HotkeyModifiers.Win;
                     break;
                 default:
                     if (mainKey is not null)
