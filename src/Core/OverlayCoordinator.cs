@@ -97,6 +97,14 @@ public sealed class OverlayCoordinator : IDisposable
 
         // Start the detector to begin monitoring immediately
         _detector.Start();
+
+        // If Warframe was already running before we subscribed to Started,
+        // the event already fired and we missed it manually fire the trigger.
+        if (_processTracker.IsRunning)
+        {
+            Debug.WriteLine("[Coordinator] Warframe already running at startup — firing WarframeStarted.");
+            _stateMachine.Fire(OverlayTrigger.WarframeStarted);
+        }
     }
 
     /// <inheritdoc/>
