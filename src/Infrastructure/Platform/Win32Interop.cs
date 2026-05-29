@@ -14,6 +14,17 @@ internal static partial class Win32Interop
     internal const int GWL_EXSTYLE = -20;
     internal const int WS_EX_TRANSPARENT = 0x00000020;
     internal const int WS_EX_LAYERED     = 0x00080000;
+    internal const int WS_EX_TOOLWINDOW  = 0x00000080;
+
+    // ── Hotkey ──────────────────────────────────────────────────────
+
+    internal const uint MOD_ALT      = 0x0001;
+    internal const uint MOD_CONTROL  = 0x0002;
+    internal const uint MOD_SHIFT    = 0x0004;
+    internal const uint MOD_WIN      = 0x0008;
+    internal const uint MOD_NOREPEAT = 0x4000;
+
+    internal const int WM_HOTKEY = 0x0312;
 
     // ── Structs ─────────────────────────────────────────────────────
 
@@ -78,6 +89,16 @@ internal static partial class Win32Interop
 
     [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
     internal static partial nint SetWindowLongPtr(nint hWnd, int nIndex, nint dwNewLong);
+
+    // ── P/Invoke: hotkeys ───────────────────────────────────────────
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool UnregisterHotKey(nint hWnd, int id);
 
     // ── P/Invoke: DPI ───────────────────────────────────────────────
 

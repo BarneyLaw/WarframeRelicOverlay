@@ -981,10 +981,12 @@
                                     "name":  "Euphona Prime Barrel"
                                 },
                                 {
-                                    "name":  "Forma Blueprint"
+                                    "name":  "Forma Blueprint",
+                                    "untradeable":  true
                                 },
                                 {
-                                    "name":  "2 X Forma Blueprint"
+                                    "name":  "2 X Forma Blueprint",
+                                    "untradeable":  true
                                 },
                                 {
                                     "name":  "Fang Prime Blueprint"

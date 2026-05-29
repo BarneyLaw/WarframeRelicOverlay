@@ -1,0 +1,53 @@
+<Window x:Class="WarframeRelicOverlay.Presentation.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WarframeRelicOverlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Focusable="False"
+        IsHitTestVisible="False"
+        ShowActivated="False">
+    <Grid x:Name="RootGrid">
+        <!-- Absolute-positioned children are added at runtime.  The
+             Canvas is sized to match the Warframe client area in DIPs;
+             children are placed via Canvas.Left / Canvas.Top. -->
+        <Canvas x:Name="LabelCanvas" />
+
+        <!-- Loading spinner overlaid above the reward area. Hidden by
+             default; toggled by the WpfOverlayOutput. -->
+        <Grid x:Name="SpinnerHost"
+              Visibility="Collapsed"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Center">
+            <Border Background="#EB12161B"
+                    BorderBrush="#CCB88A3E"
+                    BorderThickness="1"
+                    CornerRadius="3"
+                    Padding="14,10">
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                    <TextBlock x:Name="SpinnerGlyph"
+                               Text="◴"
+                               FontSize="28"
+                               Foreground="#FFF5E6B5"
+                               HorizontalAlignment="Center"
+                               RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform x:Name="SpinnerRotation" Angle="0" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                    <TextBlock Text="Pricing..."
+                               FontSize="11"
+                               Foreground="#FFC7A155"
+                               HorizontalAlignment="Center"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

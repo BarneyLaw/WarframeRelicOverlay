@@ -112,6 +112,21 @@ public sealed class LogFileDetector : IRewardScreenDetector
             _watcher.OnTriggered += OnWatcherTriggered;
             _watcher.Start();
         }
+        catch (ArgumentException ex)
+        {
+            // The Warframe local-app-data directory does not exist yet —
+            // the game has never been launched on this machine, or the
+            // user pointed us at a bogus EeLogPathOverride.  Don't take
+            // the whole app down for it; log and remain inert.  When
+            // Warframe runs for the first time the launcher creates the
+            // directory and the next IRewardDetector.Start (driven by
+            // the state machine) will succeed.
+            Trace.TraceWarning(
+                $"{nameof(LogFileDetector)} disabled: {ex.Message}. " +
+                "EE.log path will be retried on the next state-machine " +
+                "transition.");
+            _watcher = null;
+        }
         catch (Exception ex)
         {
             // Log and rethrow — the caller needs to know if we fail to start
