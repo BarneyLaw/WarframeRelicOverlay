@@ -33,6 +33,10 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly bool _saveDebugImages;
     private static readonly TimeSpan RewardHeaderTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
+    private const double RewardHeaderX = 0.0729;
+    private const double RewardHeaderY = 0.0324;
+    private const double RewardHeaderWidth = 0.401;
+    private const double RewardHeaderHeight = 0.0602;
 
     public RewardPricingPipeline(
         IScreenCapturer capturer,
@@ -395,10 +399,10 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
     private static Rectangle ComputeRewardHeaderRegion(Bitmap screenshot)
     {
-        int x = (int)(screenshot.Width * 0.12);
-        int y = (int)(screenshot.Height * 0.015);
-        int width = (int)(screenshot.Width * 0.36);
-        int height = Math.Max(55, (int)(screenshot.Height * 0.09));
+        int x = (int)(screenshot.Width * RewardHeaderX);
+        int y = (int)(screenshot.Height * RewardHeaderY);
+        int width = Math.Max(1, (int)(screenshot.Width * RewardHeaderWidth));
+        int height = Math.Max(1, (int)(screenshot.Height * RewardHeaderHeight));
         return new Rectangle(x, y, width, height);
     }
 
