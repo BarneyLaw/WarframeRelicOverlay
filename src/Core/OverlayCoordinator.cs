@@ -2,6 +2,7 @@ namespace WarframeRelicOverlay.Core;
 
 using System.Diagnostics;
 using WarframeRelicOverlay.OverlayApp.Detection;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
@@ -35,6 +36,7 @@ public sealed class OverlayCoordinator : IDisposable
     private readonly IRewardPipeline _pipeline;
     private readonly IOverlayOutput _output;
     private readonly AppSettings _settings;
+    private readonly ILogger? _logger;
 
     // Mutable states, guarded by a lock
     private readonly object _lock = new();
@@ -59,7 +61,8 @@ public sealed class OverlayCoordinator : IDisposable
         IRewardDetector detector,
         IRewardPipeline pipeline,
         IOverlayOutput output,
-        AppSettings settings)
+        AppSettings settings,
+        ILogger? logger = null)
     {
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _processTracker = processTracker ?? throw new ArgumentNullException(nameof(processTracker));
@@ -68,6 +71,7 @@ public sealed class OverlayCoordinator : IDisposable
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _output = output ?? throw new ArgumentNullException(nameof(output));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _logger = logger;
     }
 
     /// <summary>
@@ -301,13 +305,22 @@ public sealed class OverlayCoordinator : IDisposable
         {
             // Get current window bounds.
             var windowHandle = _processTracker.MainWindowHandle;
+            _logger?.LogInfo($"[Coordinator] Pricing pipeline requested; window handle=0x{windowHandle:X}.");
             var window = _windowTracker.TryGetBounds(windowHandle);
             if (window is null || !window.Value.IsValid)
             {
                 Debug.WriteLine("[Coordinator] Window bounds unavailable — pricing failed.");
+                string reason = window is null
+                    ? "window tracker returned null"
+                    : $"invalid bounds {window.Value.ClientWidth}x{window.Value.ClientHeight} @ ({window.Value.ClientX},{window.Value.ClientY})";
+                _logger?.LogWarning($"[Coordinator] Pricing failed before pipeline: {reason}.");
                 _stateMachine.Fire(OverlayTrigger.PricingFailed);
                 return;
             }
+
+            _logger?.LogInfo(
+                $"[Coordinator] Pricing window bounds: physical={window.Value.ClientWidth}x{window.Value.ClientHeight} " +
+                $"@ ({window.Value.ClientX},{window.Value.ClientY}), dpi={window.Value.DpiScaleX:0.##}x{window.Value.DpiScaleY:0.##}.");
  
             // Stabilization delay — wait for the reward screen animation.
             if (_settings.StabilizationDelayMs > 0)
@@ -329,6 +342,11 @@ public sealed class OverlayCoordinator : IDisposable
                 Debug.WriteLine(
                     $"[Coordinator] Pipeline produced {result.Cards.Count} card(s) " +
                     $"in {result.Elapsed.TotalMilliseconds:F0}ms.");
+                _logger?.LogInfo(
+                    $"[Coordinator] Pipeline succeeded: cards={result.Cards.Count}, " +
+                    $"matched={result.Cards.Count(c => c.MatchedItem is not null)}, " +
+                    $"priced={result.Cards.Count(c => c.PricePlatinum.HasValue)}, " +
+                    $"elapsed={result.Elapsed.TotalMilliseconds:F0} ms.");
  
                 _output.ShowPrices(result);
                 _stateMachine.Fire(OverlayTrigger.PricingCompleted);
@@ -336,12 +354,16 @@ public sealed class OverlayCoordinator : IDisposable
             else
             {
                 Debug.WriteLine("[Coordinator] Pipeline detected no cards — pricing failed.");
+                _logger?.LogWarning(
+                    $"[Coordinator] Pricing failed after pipeline: no cards returned; " +
+                    $"elapsed={result.Elapsed.TotalMilliseconds:F0} ms.");
                 _stateMachine.Fire(OverlayTrigger.PricingFailed);
             }
         }
         catch (OperationCanceledException)
         {
             Debug.WriteLine("[Coordinator] Pipeline cancelled.");
+            _logger?.LogWarning("[Coordinator] Pipeline cancelled.");
             // No trigger needed — the cancellation was caused by
             // WarframeStopped or Dispose, which handle their own
             // state transitions.
@@ -349,6 +371,7 @@ public sealed class OverlayCoordinator : IDisposable
         catch (Exception ex)
         {
             Debug.WriteLine($"[Coordinator] Pipeline error: {ex.Message}");
+            _logger?.LogError("[Coordinator] Pipeline threw an unexpected exception.", ex);
             _stateMachine.Fire(OverlayTrigger.PricingFailed);
         }
 

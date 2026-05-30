@@ -109,8 +109,9 @@ public class RewardPricingPipelineTests
         public Dictionary<string, int?> Prices { get; } = new();
         private int _calls;
 
-        public Task<int?> GetPriceAsync(string itemName)
+        public Task<int?> GetPriceAsync(string itemName, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Interlocked.Increment(ref _calls);
             int? price = Prices.TryGetValue(itemName, out var p) ? p : null;
             return Task.FromResult(price);

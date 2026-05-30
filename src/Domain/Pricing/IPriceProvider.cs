@@ -12,5 +12,5 @@ public interface IPriceProvider
     /// or null if the item is untradeable, not found, or pricing is unavailable.
     /// </summary>
 
-    Task<int?> GetPriceAsync(string itemName);
+    Task<int?> GetPriceAsync(string itemName, CancellationToken cancellationToken = default);
 }

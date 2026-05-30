@@ -164,9 +164,25 @@ public partial class App : Application
             _ => new TesseractOcrEngine(tessDataPath, poolSize: 4));
 
         // Infrastructure: market API
-        services.AddSingleton<HttpClient>();
+        services.AddSingleton(_ =>
+        {
+            var http = new HttpClient
+            {
+                BaseAddress = new Uri("https://api.warframe.market/v2/"),
+                Timeout = TimeSpan.FromSeconds(10),
+            };
+
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WarframeRelicOverlay/1.0");
+            http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("Platform", "pc");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("Language", "en");
+
+            return http;
+        });
         services.AddSingleton<IWarframeMarketAPI>(
-            sp => new WarframeMarketClient(sp.GetRequiredService<HttpClient>()));
+            sp => new WarframeMarketClient(
+                sp.GetRequiredService<HttpClient>(),
+                sp.GetRequiredService<ILogger>()));
 
         // Domain: reward data
         services.AddSingleton<IRewardRepository>(
@@ -179,7 +195,8 @@ public partial class App : Application
         services.AddSingleton<IPriceProvider>(sp =>
             new RewardPriceCache(
                 sp.GetRequiredService<IWarframeMarketAPI>(),
-                TimeSpan.FromMinutes(settings.PriceCacheTtlMinutes)));
+                TimeSpan.FromMinutes(settings.PriceCacheTtlMinutes),
+                sp.GetRequiredService<ILogger>()));
 
         // Application: layout detection
         services.AddSingleton<IRewardLayoutDetector, IntensityProfileDetector>();

@@ -21,7 +21,7 @@ public sealed class FileLogger : ILogger
     /// Initializes a new instance of the FileLogger.
     /// The log file is created in the application's local AppData directory.
     /// </summary>
-    public FileLogger()
+    public FileLogger(bool clearOnStart = true)
     {
         string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string logDirectory = Path.Combine(appDataPath, "WarframeRelicOverlay");
@@ -31,8 +31,22 @@ public sealed class FileLogger : ILogger
 
         _logFilePath = Path.Combine(logDirectory, "overlay.log");
 
-        // If log file is too large, archive it
-        RollLogFileIfNeeded();
+        if (clearOnStart)
+            ClearLogFile();
+        else
+            RollLogFileIfNeeded();
+    }
+
+    private void ClearLogFile()
+    {
+        try
+        {
+            File.WriteAllText(_logFilePath, string.Empty);
+        }
+        catch
+        {
+            Debug.WriteLine("Failed to clear log file");
+        }
     }
 
     public void LogInfo(string message)
