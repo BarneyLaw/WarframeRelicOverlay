@@ -3,6 +3,7 @@ namespace WarframeRelicOverlay.Presentation;
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 
 /// <summary>
@@ -16,9 +17,22 @@ using WarframeRelicOverlay.Infrastructure.Platform;
 /// </summary>
 public partial class OverlayWindow : Window
 {
-    public OverlayWindow()
+    private readonly ILogger? _logger;
+
+    public OverlayWindow() : this(null) { }
+
+    public OverlayWindow(ILogger? logger)
     {
+        _logger = logger;
         InitializeComponent();
+
+        Loaded += (_, _) =>
+            _logger?.LogInfo($"OverlayWindow Loaded: ActualSize {ActualWidth}x{ActualHeight}, " +
+                             $"Left/Top ({Left},{Top}), Size {Width}x{Height}.");
+        SizeChanged += (_, e) =>
+            _logger?.LogInfo($"OverlayWindow SizeChanged -> {e.NewSize.Width}x{e.NewSize.Height}.");
+        LocationChanged += (_, _) =>
+            _logger?.LogInfo($"OverlayWindow LocationChanged -> ({Left},{Top}).");
     }
 
     /// <inheritdoc />
@@ -26,6 +40,29 @@ public partial class OverlayWindow : Window
     {
         base.OnSourceInitialized(e);
         SetClickThrough(true);
+
+        nint hwnd = new WindowInteropHelper(this).Handle;
+        _logger?.LogInfo($"OverlayWindow SourceInitialized: hwnd 0x{hwnd:X}, " +
+                         $"Size {Width}x{Height}, Left/Top ({Left},{Top}).");
+    }
+
+    /// <summary>
+    /// Positions and sizes the overlay using raw screen pixels via
+    /// <c>SetWindowPos</c>. This bypasses WPF's logical-unit (DIP)
+    /// Width/Height handling, which does not reliably track a window
+    /// across monitors of differing DPI. WPF re-renders its content to
+    /// fill whatever physical size the HWND receives. Must be called on
+    /// the UI thread (the window's owning thread).
+    /// </summary>
+    public void SetPhysicalBounds(int x, int y, int width, int height)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return; // HWND not created yet — retried next tick
+
+        Win32Interop.SetWindowPos(
+            hwnd, Win32Interop.HWND_TOPMOST,
+            x, y, width, height,
+            Win32Interop.SWP_NOACTIVATE);
     }
 
     /// <summary>

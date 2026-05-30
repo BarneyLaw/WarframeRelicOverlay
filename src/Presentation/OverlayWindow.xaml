@@ -9,10 +9,12 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        Left="{Binding WindowLeft, Mode=OneWay}"
-        Top="{Binding WindowTop, Mode=OneWay}"
-        Width="{Binding WindowWidth, Mode=OneWay}"
-        Height="{Binding WindowHeight, Mode=OneWay}">
+        SizeToContent="Manual"
+        WindowStartupLocation="Manual"
+        Width="0" Height="0">
+    <!-- Position/size are driven entirely from code via SetPhysicalBounds
+         (raw screen pixels). No Width/Height bindings: WPF's per-monitor
+         DIP conversion was unreliable across mixed-DPI monitors. -->
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />

@@ -40,40 +40,67 @@ public partial class App : Application
     private OverlayCoordinator? _coordinator;
     private OverlayViewModel? _viewModel;
     private IProcessTracker? _processTracker;
+    private ILogger? _logger;
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
-        // Belt-and-suspenders: the app.manifest already declares
-        // PerMonitorV2, but if it was stripped (e.g. some single-file
-        // publish configs) this ensures we still get true physical
-        // pixels from the Win32 geometry/capture APIs. Must run before
-        // any HWND is created.
-        Infrastructure.Platform.Win32Interop.TryEnablePerMonitorV2();
+        // Build the logger first thing so every step below is captured,
+        // even if startup throws. Constructed explicitly (not via DI) so
+        // the log file is guaranteed to exist from boot — a lazily
+        // resolved singleton might never be instantiated.
+        var logger = new FileLogger();
+        _logger = logger;
+        logger.LogInfo("==================== App starting ====================");
+        logger.LogInfo($"Log file: {logger.LogFilePath}");
 
-        bool debugMode = e.Args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            // Belt-and-suspenders: the app.manifest already declares
+            // PerMonitorV2, but if it was stripped (e.g. some single-file
+            // publish configs) this ensures we still get true physical
+            // pixels from the Win32 geometry/capture APIs. Must run before
+            // any HWND is created.
+            Infrastructure.Platform.Win32Interop.TryEnablePerMonitorV2();
+            logger.LogInfo("Per-Monitor-V2 DPI awareness requested.");
 
-        // ── Load settings ───────────────────────────────────────────
-        string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
-        string settingsPath = Path.Combine(dataDir, "settings.json");
-        var settings = AppSettings.Load(settingsPath);
+            bool debugMode = e.Args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
 
-        debugMode = debugMode || settings.DebugMode;
-        Debug.WriteLine($"[App] DebugMode={debugMode}, DetectionMode={settings.DetectionMode}");
+            // ── Load settings ───────────────────────────────────────────
+            string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
+            string settingsPath = Path.Combine(dataDir, "settings.json");
+            var settings = AppSettings.Load(settingsPath);
+            logger.LogInfo(
+                $"Settings loaded from '{settingsPath}': " +
+                $"DetectionMode={settings.DetectionMode}, DebugMode={settings.DebugMode}.");
 
-        if (debugMode)
-            StartDebugMode(settings);
-        else
-            StartNormalMode(settings);
+            debugMode = debugMode || settings.DebugMode;
+            logger.LogInfo($"Effective launch mode: {(debugMode ? "DEBUG" : "NORMAL")}.");
+
+            if (debugMode)
+                StartDebugMode(settings, logger);
+            else
+                StartNormalMode(settings, logger);
+
+            logger.LogInfo("Startup complete.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Fatal error during startup.", ex);
+            throw;
+        }
     }
 
     // ── Debug mode ──────────────────────────────────────────────────
     // Only needs the state machine, view model, and simulator.
     // No OCR, no screen capture, no market API, no Tesseract.
 
-    private void StartDebugMode(AppSettings settings)
+    private void StartDebugMode(AppSettings settings, ILogger logger)
     {
+        logger.LogInfo("Starting DEBUG mode (no real OCR / capture / market).");
+
         var services = new ServiceCollection();
         services.AddSingleton(settings);
+        services.AddSingleton<ILogger>(logger);
         services.AddSingleton<OverlayStateMachine>();
         services.AddSingleton<OverlayViewModel>(sp =>
         {
@@ -81,7 +108,7 @@ public partial class App : Application
             // OverlayViewModel needs IWindowTracker and IProcessTracker
             // but in debug mode they're never called (position tracking
             // is replaced by ForceWindowGeometry).  Register stubs.
-            return new OverlayViewModel(sm, NullWindowTracker.Instance, NullProcessTracker.Instance);
+            return new OverlayViewModel(sm, NullWindowTracker.Instance, NullProcessTracker.Instance, logger);
         });
 
         _serviceProvider = services.BuildServiceProvider();
@@ -89,7 +116,8 @@ public partial class App : Application
         var stateMachine = _serviceProvider.GetRequiredService<OverlayStateMachine>();
         _viewModel = _serviceProvider.GetRequiredService<OverlayViewModel>();
 
-        var overlayWindow = new OverlayWindow { DataContext = _viewModel };
+        var overlayWindow = new OverlayWindow(logger) { DataContext = _viewModel };
+        _viewModel.PhysicalBoundsChanged += overlayWindow.SetPhysicalBounds;
         MainWindow = overlayWindow;
         overlayWindow.Show();
 
@@ -104,8 +132,10 @@ public partial class App : Application
     // ── Normal mode ─────────────────────────────────────────────────
     // Full DI container with all real services.
 
-    private void StartNormalMode(AppSettings settings)
+    private void StartNormalMode(AppSettings settings, ILogger logger)
     {
+        logger.LogInfo("Starting NORMAL mode.");
+
         string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
         string itemsPath = Path.Combine(dataDir, "items.json");
         string tessDataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
@@ -115,8 +145,9 @@ public partial class App : Application
         // Settings
         services.AddSingleton(settings);
 
-        // Logging
-        services.AddSingleton<ILogger, FileLogger>();
+        // Logging — register the instance created at boot so every
+        // component shares the same log file.
+        services.AddSingleton<ILogger>(logger);
 
         // Infrastructure: platform
         services.AddSingleton<IProcessTracker, WarframeProcessTracker>();
@@ -185,32 +216,38 @@ public partial class App : Application
         services.AddSingleton<OverlayCoordinator>();
 
         _serviceProvider = services.BuildServiceProvider();
+        logger.LogInfo("DI container built.");
 
         _viewModel = _serviceProvider.GetRequiredService<OverlayViewModel>();
         _coordinator = _serviceProvider.GetRequiredService<OverlayCoordinator>();
 
-        var overlayWindow = new OverlayWindow { DataContext = _viewModel };
+        var overlayWindow = new OverlayWindow(logger) { DataContext = _viewModel };
+        _viewModel.PhysicalBoundsChanged += overlayWindow.SetPhysicalBounds;
         MainWindow = overlayWindow;
         overlayWindow.Show();
+        logger.LogInfo("Overlay window shown.");
 
         // Start services
         _processTracker = _serviceProvider.GetRequiredService<IProcessTracker>();
         _processTracker.Start();
+        logger.LogInfo("Process tracker started.");
         _viewModel.StartPositionTracking();
+        logger.LogInfo("Position tracking started.");
         _coordinator.Start();
-
-        Debug.WriteLine("[App] Normal mode started.");
+        logger.LogInfo("Coordinator started. Normal mode ready.");
     }
 
     private void OnExit(object sender, ExitEventArgs e)
     {
-        Debug.WriteLine("[App] Shutting down...");
+        _logger?.LogInfo($"Application exiting (code {e.ApplicationExitCode}).");
 
         _viewModel?.StopPositionTracking();
         _coordinator?.Dispose();
 
         if (_serviceProvider is IDisposable disposable)
             disposable.Dispose();
+
+        _logger?.LogInfo("==================== App stopped ====================");
     }
 }
 

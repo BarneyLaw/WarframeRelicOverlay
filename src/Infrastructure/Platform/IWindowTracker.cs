@@ -16,8 +16,8 @@ public interface IWindowTracker
     /// <summary>
     /// Returns a snapshot whose <c>ClientX/Y/Width/Height</c> describe
     /// the full physical bounds of the monitor containing
-    /// <paramref name="windowHandle"/>.  Used to size the overlay so it
-    /// covers the entire display rather than just the game client area.
+    /// <paramref name="windowHandle"/>. Used as a fallback when client
+    /// bounds are temporarily unavailable.
     /// Returns <c>null</c> if the handle is invalid or the monitor
     /// cannot be determined.
     /// </summary>

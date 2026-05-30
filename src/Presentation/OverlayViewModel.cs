@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Threading;
 using WarframeRelicOverlay.Core;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
@@ -32,6 +33,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private readonly IWindowTracker _windowTracker;
     private readonly IProcessTracker _processTracker;
     private readonly OverlayStateMachine _stateMachine;
+    private readonly ILogger? _logger;
     private Timer? _positionTimer;
 
     // ── Bindable state ──────────────────────────────────────────────
@@ -40,10 +42,6 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private bool _isStatusVisible;
     private bool _isLoadingVisible;
     private bool _isOverlayVisible;
-    private double _windowLeft;
-    private double _windowTop;
-    private double _windowWidth = 800;
-    private double _windowHeight = 600;
     private double _dpiScaleX = 1.0;
     private double _dpiScaleY = 1.0;
     private double _gameOffsetX;
@@ -51,6 +49,14 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
 
     /// <summary>Price labels positioned over detected reward cards.</summary>
     public ObservableCollection<PriceLabel> PriceLabels { get; } = new();
+
+    /// <summary>
+    /// Raised (on the UI thread) with the overlay's target bounds in raw
+    /// screen pixels (x, y, width, height). The view subscribes and calls
+    /// <c>SetWindowPos</c>; pixels avoid WPF's unreliable per-monitor DIP
+    /// conversion.
+    /// </summary>
+    public event Action<int, int, int, int>? PhysicalBoundsChanged;
 
     public string StatusText
     {
@@ -76,41 +82,19 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         private set => SetField(ref _isOverlayVisible, value);
     }
 
-    public double WindowLeft
-    {
-        get => _windowLeft;
-        private set => SetField(ref _windowLeft, value);
-    }
-
-    public double WindowTop
-    {
-        get => _windowTop;
-        private set => SetField(ref _windowTop, value);
-    }
-
-    public double WindowWidth
-    {
-        get => _windowWidth;
-        private set => SetField(ref _windowWidth, value);
-    }
-
-    public double WindowHeight
-    {
-        get => _windowHeight;
-        private set => SetField(ref _windowHeight, value);
-    }
-
     // ── Construction ────────────────────────────────────────────────
 
     public OverlayViewModel(
         OverlayStateMachine stateMachine,
         IWindowTracker windowTracker,
-        IProcessTracker processTracker)
+        IProcessTracker processTracker,
+        ILogger? logger = null)
     {
         _dispatcher = Application.Current.Dispatcher;
         _stateMachine = stateMachine;
         _windowTracker = windowTracker;
         _processTracker = processTracker;
+        _logger = logger;
 
         _stateMachine.StateChanged += OnStateChanged;
     }
@@ -120,6 +104,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     /// </summary>
     public void StartPositionTracking()
     {
+        _logger?.LogInfo("Position tracking poll started (100 ms interval).");
         _positionTimer?.Dispose();
         _positionTimer = new Timer(UpdateWindowPosition, null,
             TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
@@ -127,6 +112,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
 
     public void StopPositionTracking()
     {
+        _logger?.LogInfo("Position tracking poll stopped.");
         _positionTimer?.Dispose();
         _positionTimer = null;
     }
@@ -140,10 +126,8 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     {
         RunOnUi(() =>
         {
-            WindowLeft = left;
-            WindowTop = top;
-            WindowWidth = width;
-            WindowHeight = height;
+            PhysicalBoundsChanged?.Invoke(
+                (int)left, (int)top, (int)width, (int)height);
             IsOverlayVisible = true;
         });
     }
@@ -214,6 +198,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private void OnStateChanged(
         OverlayState previous, OverlayState current, OverlayTrigger trigger)
     {
+        _logger?.LogInfo($"State: {previous} -> {current} (trigger: {trigger}).");
         RunOnUi(() =>
         {
             UpdateStatusForState(current);
@@ -257,45 +242,91 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private void UpdateWindowPosition(object? _)
     {
         var handle = _processTracker.MainWindowHandle;
-        if (handle == nint.Zero) return;
+        if (handle == nint.Zero)
+        {
+            LogPositionFailure("MainWindowHandle is zero — process not attached or window not yet created");
+            return;
+        }
 
-        // Size the overlay to the full monitor — same strategy as the
-        // reference implementation.  This is resilient to DPI
-        // virtualisation and non-native game resolutions that can make
-        // GetClientRect report a smaller-than-display area.
-        var monitor = _windowTracker.TryGetMonitorBounds(handle);
-        if (monitor is null || !monitor.Value.IsValid) return;
+        // Track Warframe's render surface, not the full monitor. In
+        // borderless/fullscreen these are usually the same, but in
+        // windowed modes the client area is smaller and can move.
+        var bounds = _windowTracker.TryGetBounds(handle);
+        bool usingMonitorFallback = false;
+        if (bounds is null || !bounds.Value.IsValid)
+        {
+            bounds = _windowTracker.TryGetMonitorBounds(handle);
+            usingMonitorFallback = bounds is { } fallback && fallback.IsValid;
+        }
 
-        // Client bounds are still needed for two things:
-        //   1. The DPI scale used to convert card pixel coords in ShowPrices.
-        //   2. The game window's offset within the monitor (non-zero only
-        //      in windowed mode; zero when Warframe is fullscreen).
-        var client = _windowTracker.TryGetBounds(handle);
+        if (bounds is null || !bounds.Value.IsValid)
+        {
+            LogPositionFailure($"No valid Warframe bounds for handle 0x{handle:X}");
+            return;
+        }
 
-        var m = monitor.Value;
+        var target = bounds.Value;
 
+        // Log the first successful resolution (and any recovery after a
+        // failure), but not every 100 ms tick.
+        if (!_positionLogged || _lastLoggedFailure is not null)
+        {
+            string msg =
+                $"Position acquired: {(usingMonitorFallback ? "monitor fallback" : "client")} " +
+                $"{target.LogicalWidth}x{target.LogicalHeight} " +
+                $"@ ({target.LogicalX},{target.LogicalY}), handle 0x{handle:X}, " +
+                $"DPI {target.DpiScaleX:0.##}x{target.DpiScaleY:0.##}.";
+            _logger?.LogInfo(msg);
+            Debug.WriteLine($"[OverlayVM] {msg}");
+            _lastLoggedFailure = null;
+            _positionLogged = true;
+        }
+
+        bool firstApply = !_geometryApplied;
         RunOnUi(() =>
         {
-            WindowLeft   = m.LogicalX;
-            WindowTop    = m.LogicalY;
-            WindowWidth  = m.LogicalWidth;
-            WindowHeight = m.LogicalHeight;
-
-            if (client is { } c)
+            try
             {
-                _dpiScaleX     = c.DpiScaleX;
-                _dpiScaleY     = c.DpiScaleY;
-                _gameOffsetX   = (c.ClientX - m.ClientX) / c.DpiScaleX;
-                _gameOffsetY   = (c.ClientY - m.ClientY) / c.DpiScaleY;
-            }
-            else
-            {
-                _dpiScaleX   = m.DpiScaleX;
-                _dpiScaleY   = m.DpiScaleY;
+                // Card bounds are relative to the captured Warframe
+                // window, and the overlay is anchored to that same window.
+                _dpiScaleX   = target.DpiScaleX;
+                _dpiScaleY   = target.DpiScaleY;
                 _gameOffsetX = 0;
                 _gameOffsetY = 0;
+
+                // Drive the window in raw screen pixels (physical), not DIPs.
+                PhysicalBoundsChanged?.Invoke(
+                    target.ClientX, target.ClientY, target.ClientWidth, target.ClientHeight);
+
+                if (firstApply)
+                {
+                    _geometryApplied = true;
+                    _logger?.LogInfo(
+                        $"Geometry applied: physical bounds {target.ClientWidth}x{target.ClientHeight} " +
+                        $"@ ({target.ClientX},{target.ClientY}).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("Failed to apply overlay geometry on UI thread.", ex);
             }
         });
+    }
+
+    // Logs a position-tracking failure only when the reason changes, so
+    // the 10 Hz timer doesn't flood the output with identical lines.
+    private string? _lastLoggedFailure;
+    private bool _positionLogged;
+    private bool _geometryApplied;
+
+    private void LogPositionFailure(string reason)
+    {
+        if (_lastLoggedFailure == reason) return;
+        _lastLoggedFailure = reason;
+        _positionLogged = false; // log the next success as a recovery
+        string msg = $"[OverlayVM] Overlay not positioned: {reason}.";
+        _logger?.LogWarning(msg);
+        Debug.WriteLine(msg);
     }
 
     // ── INotifyPropertyChanged ──────────────────────────────────────

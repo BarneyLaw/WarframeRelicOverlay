@@ -14,6 +14,9 @@ public sealed class FileLogger : ILogger
     private readonly object _lockObject = new();
     private const int MaxLogFileSizeBytes = 5_000_000; // 5 MB
 
+    /// <summary>Absolute path of the active log file.</summary>
+    public string LogFilePath => _logFilePath;
+
     /// <summary>
     /// Initializes a new instance of the FileLogger.
     /// The log file is created in the application's local AppData directory.

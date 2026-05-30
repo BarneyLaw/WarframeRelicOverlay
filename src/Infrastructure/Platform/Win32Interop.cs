@@ -55,6 +55,26 @@ internal static partial class Win32Interop
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetClientRect(nint hWnd, out RECT lpRect);
 
+    // ── P/Invoke: top-level window enumeration ──────────────────────
+    // Used to recover the game's render window when
+    // Process.MainWindowHandle returns zero (it caches stale/empty
+    // values and can report 0 for borderless game windows).
+
+    internal delegate bool EnumWindowsProc(nint hWnd, nint lParam);
+
+    // DllImport: the LibraryImport source-generator doesn't marshal
+    // managed delegate callbacks here as cleanly.
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, nint lParam);
+
+    [LibraryImport("user32.dll")]
+    internal static partial uint GetWindowThreadProcessId(nint hWnd, out uint lpdwProcessId);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindowVisible(nint hWnd);
+
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ClientToScreen(nint hWnd, ref POINT lpPoint);
@@ -70,6 +90,20 @@ internal static partial class Win32Interop
 
     [LibraryImport("user32.dll")]
     internal static partial nint GetForegroundWindow();
+
+    // ── P/Invoke: window placement ──────────────────────────────────
+    // Used to size/position the overlay in raw screen pixels, bypassing
+    // WPF's per-monitor logical-unit (DIP) handling which is unreliable
+    // across monitors with differing DPI.
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetWindowPos(
+        nint hWnd, nint hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
+
+    internal static readonly nint HWND_TOPMOST = -1;
+    internal const uint SWP_NOACTIVATE = 0x0010;
 
     // ── P/Invoke: window style (click-through toggle) ───────────────
 
@@ -161,6 +195,37 @@ internal static partial class Win32Interop
             return (1.0, 1.0);
 
         return (dpiX / 96.0, dpiY / 96.0);
+    }
+
+    /// <summary>
+    /// Finds the most likely "main" top-level window owned by the given
+    /// process id: the largest visible non-empty top-level window. This
+    /// is a robust replacement for <c>Process.MainWindowHandle</c>, which
+    /// can return <c>0</c> for game windows or cache an empty value.
+    /// Returns <see cref="nint.Zero"/> if no suitable window is found.
+    /// </summary>
+    internal static nint GetTopLevelWindowForProcess(int pid)
+    {
+        nint best = nint.Zero;
+        long bestArea = 0;
+
+        EnumWindows((hWnd, _) =>
+        {
+            GetWindowThreadProcessId(hWnd, out uint windowPid);
+            if (windowPid != (uint)pid) return true;          // not ours
+            if (!IsWindowVisible(hWnd)) return true;            // hidden
+            if (!GetWindowRect(hWnd, out var rect)) return true;
+
+            long area = (long)rect.Width * rect.Height;
+            if (area > bestArea)
+            {
+                bestArea = area;
+                best = hWnd;
+            }
+            return true; // keep enumerating
+        }, nint.Zero);
+
+        return best;
     }
 
     /// <summary>
