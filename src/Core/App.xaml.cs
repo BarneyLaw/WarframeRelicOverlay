@@ -234,5 +234,6 @@ file sealed class NullWindowTracker : IWindowTracker
 {
     public static readonly NullWindowTracker Instance = new();
     public WindowSnapshot? TryGetBounds(nint hwnd) => null;
+    public WindowSnapshot? TryGetMonitorBounds(nint hwnd) => null;
     public bool IsForeground(nint hwnd) => false;
 }

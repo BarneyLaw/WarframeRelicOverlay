@@ -127,6 +127,7 @@ public sealed class EndToEndPipelineTests : IDisposable
             _snapshot = new WindowSnapshot(0, 0, width, height, 1.0, 1.0);
         }
         public WindowSnapshot? TryGetBounds(nint windowHandle) => _snapshot;
+        public WindowSnapshot? TryGetMonitorBounds(nint windowHandle) => null;
         public bool IsForeground(nint windowHandle) => true;
     }
 
@@ -259,7 +260,7 @@ public sealed class EndToEndPipelineTests : IDisposable
         stateMachine.Current.Should().Be(OverlayState.Tracking,
             "after Warframe starts, the state machine should be Tracking");
 
-                // ── Inject the EE.log trigger ────────────────────────────
+        // ── Inject the EE.log trigger ────────────────────────────
  
         // Append the trigger phrase. The LogFileDetector polls every
         // ~200ms, so the event should fire within a few hundred ms.

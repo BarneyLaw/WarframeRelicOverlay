@@ -52,6 +52,25 @@ public sealed class WarframeWindowTracker : IWindowTracker
     }
  
     /// <inheritdoc />
+    public WindowSnapshot? TryGetMonitorBounds(nint windowHandle)
+    {
+        if (windowHandle == nint.Zero) return null;
+
+        var (rect, scaleX, scaleY) = Win32Interop.GetMonitorBounds(windowHandle);
+        if (rect.Width <= 0 || rect.Height <= 0) return null;
+
+        var snapshot = new WindowSnapshot(
+            ClientX:      rect.Left,
+            ClientY:      rect.Top,
+            ClientWidth:  rect.Width,
+            ClientHeight: rect.Height,
+            DpiScaleX:    scaleX,
+            DpiScaleY:    scaleY);
+
+        return snapshot.IsValid ? snapshot : null;
+    }
+
+    /// <inheritdoc />
     public bool IsForeground(nint windowHandle)
     {
         if (windowHandle == nint.Zero)

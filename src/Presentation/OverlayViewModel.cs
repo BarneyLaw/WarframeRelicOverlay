@@ -46,6 +46,8 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private double _windowHeight = 600;
     private double _dpiScaleX = 1.0;
     private double _dpiScaleY = 1.0;
+    private double _gameOffsetX;
+    private double _gameOffsetY;
 
     /// <summary>Price labels positioned over detected reward cards.</summary>
     public ObservableCollection<PriceLabel> PriceLabels { get; } = new();
@@ -161,8 +163,8 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                 double scaleX = _dpiScaleX;
                 double scaleY = _dpiScaleY;
 
-                double logicalX = card.BoundsInWindow.X / scaleX;
-                double logicalY = card.BoundsInWindow.Y / scaleY;
+                double logicalX = _gameOffsetX + card.BoundsInWindow.X / scaleX;
+                double logicalY = _gameOffsetY + card.BoundsInWindow.Y / scaleY;
                 double logicalW = card.BoundsInWindow.Width / scaleX;
 
                 // Position the label centered horizontally over the card,
@@ -257,25 +259,42 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         var handle = _processTracker.MainWindowHandle;
         if (handle == nint.Zero) return;
 
-        var snapshot = _windowTracker.TryGetBounds(handle);
-        if (snapshot is null || !snapshot.Value.IsValid) return;
+        // Size the overlay to the full monitor — same strategy as the
+        // reference implementation.  This is resilient to DPI
+        // virtualisation and non-native game resolutions that can make
+        // GetClientRect report a smaller-than-display area.
+        var monitor = _windowTracker.TryGetMonitorBounds(handle);
+        if (monitor is null || !monitor.Value.IsValid) return;
 
-        var w = snapshot.Value;
+        // Client bounds are still needed for two things:
+        //   1. The DPI scale used to convert card pixel coords in ShowPrices.
+        //   2. The game window's offset within the monitor (non-zero only
+        //      in windowed mode; zero when Warframe is fullscreen).
+        var client = _windowTracker.TryGetBounds(handle);
 
-        // Use the DPI reported for Warframe's own monitor so the
-        // logical coordinates are always derived from the correct
-        // reference — eliminating the stale-DPI bug that occurred
-        // when the overlay window hadn't yet settled on the same
-        // monitor as Warframe.
+        var m = monitor.Value;
+
         RunOnUi(() =>
         {
-            WindowLeft   = w.LogicalX;
-            WindowTop    = w.LogicalY;
-            WindowWidth  = w.LogicalWidth;
-            WindowHeight = w.LogicalHeight;
+            WindowLeft   = m.LogicalX;
+            WindowTop    = m.LogicalY;
+            WindowWidth  = m.LogicalWidth;
+            WindowHeight = m.LogicalHeight;
 
-            _dpiScaleX = w.DpiScaleX;
-            _dpiScaleY = w.DpiScaleY;
+            if (client is { } c)
+            {
+                _dpiScaleX     = c.DpiScaleX;
+                _dpiScaleY     = c.DpiScaleY;
+                _gameOffsetX   = (c.ClientX - m.ClientX) / c.DpiScaleX;
+                _gameOffsetY   = (c.ClientY - m.ClientY) / c.DpiScaleY;
+            }
+            else
+            {
+                _dpiScaleX   = m.DpiScaleX;
+                _dpiScaleY   = m.DpiScaleY;
+                _gameOffsetX = 0;
+                _gameOffsetY = 0;
+            }
         });
     }
 

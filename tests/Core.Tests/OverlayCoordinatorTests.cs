@@ -55,6 +55,7 @@ public class OverlayCoordinatorTests : IDisposable
             DpiScaleX: 1.0, DpiScaleY: 1.0);
 
         public WindowSnapshot? TryGetBounds(nint windowHandle) => SnapshotToReturn;
+        public WindowSnapshot? TryGetMonitorBounds(nint windowHandle) => null;
         public bool IsForeground(nint windowHandle) => true;
     }
 
