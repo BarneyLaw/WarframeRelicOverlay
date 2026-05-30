@@ -71,6 +71,11 @@ public class LogFileDetectorTests : IDisposable
     }
 
     [Theory]
+    [InlineData("VoidProjections: OpenVoidProjectionRewardScreenRMI")]
+    [InlineData("VoidProjections: OpenVoidProjectionRewardScreen - PostMigration: 0")]
+    [InlineData("Created /Lotus/Interface/ProjectionRewardChoice.swf")]
+    [InlineData("ProjectionRewardChoice.lua: Relic rewards initialized")]
+    [InlineData("ProjectionRewardChoice.lua: Got rewards")]
     [InlineData("Got rewards")]
     [InlineData("got rewards")]
     [InlineData("GotRewards")]

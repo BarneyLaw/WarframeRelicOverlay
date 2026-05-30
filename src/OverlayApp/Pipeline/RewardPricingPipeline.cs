@@ -33,7 +33,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly bool _saveDebugImages;
     private static readonly TimeSpan RewardHeaderTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan RewardCaptureDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RewardCardReadinessTimeout = TimeSpan.FromSeconds(12);
+    private static readonly TimeSpan RewardCardPollInterval = TimeSpan.FromMilliseconds(100);
     private const double RewardHeaderX = 0.0729;
     private const double RewardHeaderY = 0.0324;
     private const double RewardHeaderWidth = 0.401;
@@ -236,29 +237,85 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
-        // Temporarily bypass header OCR polling so EE.log triggers can prove the downstream pricing path.
+        if (!_enableVisualReadinessGate)
+        {
+            LogInfo(runId, "Visual readiness gate disabled; capturing immediately.");
+            return CaptureOnce(window, runId, stopwatch, "capture-ready");
+        }
+
         LogInfo(runId,
-            $"Header readiness polling disabled; waiting {RewardCaptureDelay.TotalMilliseconds:F0} ms before capture.");
+            $"Header OCR polling disabled; polling for reward card layout every " +
+            $"{RewardCardPollInterval.TotalMilliseconds:F0} ms for up to " +
+            $"{RewardCardReadinessTimeout.TotalMilliseconds:F0} ms.");
 
-        await Task.Delay(RewardCaptureDelay, cancellationToken);
+        var readinessStopwatch = Stopwatch.StartNew();
+        Bitmap? latest = null;
+        int attempt = 0;
 
-        cancellationToken.ThrowIfCancellationRequested();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            attempt++;
 
-        LogInfo(runId, "CaptureWindow after fixed delay starting.");
+            latest?.Dispose();
+            LogInfo(runId, $"Card readiness capture attempt {attempt} starting.");
+            latest = _capturer.CaptureWindow(window);
+
+            if (latest is null)
+            {
+                LogWarning(runId,
+                    $"Card readiness capture attempt {attempt} returned null after " +
+                    $"{stopwatch.ElapsedMilliseconds} ms.");
+                return null;
+            }
+
+            LogInfo(runId,
+                $"Card readiness capture attempt {attempt} succeeded: bitmap={latest.Width}x{latest.Height}; " +
+                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+
+            var cardRects = _layoutDetector.DetectCardBoundaries(latest, latest.Width, latest.Height);
+            if (cardRects.Count > 0)
+            {
+                LogInfo(runId,
+                    $"Reward cards visible on attempt {attempt}: {cardRects.Count} card(s), " +
+                    $"bounds={DescribeRects(cardRects)}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                SaveDebugImage(latest, runId, "capture-ready");
+                return latest;
+            }
+
+            if (readinessStopwatch.Elapsed >= RewardCardReadinessTimeout)
+            {
+                LogWarning(runId,
+                    $"Reward cards were not detected within {RewardCardReadinessTimeout.TotalMilliseconds:F0} ms; " +
+                    "returning the last capture so layout diagnostics can report the failure.");
+                SaveDebugImage(latest, runId, "capture-no-cards");
+                return latest;
+            }
+
+            LogInfo(runId,
+                $"Reward cards not visible on attempt {attempt}; waiting " +
+                $"{RewardCardPollInterval.TotalMilliseconds:F0} ms.");
+            await Task.Delay(RewardCardPollInterval, cancellationToken);
+        }
+    }
+
+    private Bitmap? CaptureOnce(WindowSnapshot window, string runId, Stopwatch stopwatch, string debugName)
+    {
+        LogInfo(runId, "CaptureWindow starting.");
         Bitmap? screenshot = _capturer.CaptureWindow(window);
 
         if (screenshot is null)
         {
             LogWarning(runId,
-                $"CaptureWindow after fixed delay returned null after {stopwatch.ElapsedMilliseconds} ms.");
+                $"CaptureWindow returned null after {stopwatch.ElapsedMilliseconds} ms.");
             return null;
         }
 
         LogInfo(runId,
-            $"CaptureWindow after fixed delay succeeded: bitmap={screenshot.Width}x{screenshot.Height}; " +
+            $"CaptureWindow succeeded: bitmap={screenshot.Width}x{screenshot.Height}; " +
             $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
 
-        SaveDebugImage(screenshot, runId, "capture-ready");
+        SaveDebugImage(screenshot, runId, debugName);
         return screenshot;
     }
 

@@ -32,9 +32,15 @@ public sealed class LogFileDetector : IRewardScreenDetector
  
     /// <summary>
     /// Trigger phrases scanned in newly-appended EE.log content.
+    /// Screen-open phrases intentionally fire before reward cards are
+    /// guaranteed visible; the pricing pipeline gates on card layout.
     /// </summary>
     private static readonly (string Phrase, string EventName)[] RewardTriggers =
     [
+        ("VoidProjections: OpenVoidProjectionRewardScreen", RewardDetectedEvent),
+        ("Created /Lotus/Interface/ProjectionRewardChoice.swf", RewardDetectedEvent),
+        ("ProjectionRewardChoice.lua: Relic rewards initialized", RewardDetectedEvent),
+        ("ProjectionRewardChoice.lua: Got rewards", RewardDetectedEvent),
         ("Got rewards", RewardDetectedEvent),
         ("GotRewards", RewardDetectedEvent),
     ];
