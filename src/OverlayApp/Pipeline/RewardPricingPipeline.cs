@@ -33,6 +33,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly bool _saveDebugImages;
     private static readonly TimeSpan RewardHeaderTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan RewardCaptureDelay = TimeSpan.FromSeconds(2);
     private const double RewardHeaderX = 0.0729;
     private const double RewardHeaderY = 0.0324;
     private const double RewardHeaderWidth = 0.401;
@@ -230,6 +231,38 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     }
 
     private async Task<Bitmap?> CaptureWhenRewardHeaderReadyAsync(
+        WindowSnapshot window,
+        string runId,
+        Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        // Temporarily bypass header OCR polling so EE.log triggers can prove the downstream pricing path.
+        LogInfo(runId,
+            $"Header readiness polling disabled; waiting {RewardCaptureDelay.TotalMilliseconds:F0} ms before capture.");
+
+        await Task.Delay(RewardCaptureDelay, cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        LogInfo(runId, "CaptureWindow after fixed delay starting.");
+        Bitmap? screenshot = _capturer.CaptureWindow(window);
+
+        if (screenshot is null)
+        {
+            LogWarning(runId,
+                $"CaptureWindow after fixed delay returned null after {stopwatch.ElapsedMilliseconds} ms.");
+            return null;
+        }
+
+        LogInfo(runId,
+            $"CaptureWindow after fixed delay succeeded: bitmap={screenshot.Width}x{screenshot.Height}; " +
+            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+
+        SaveDebugImage(screenshot, runId, "capture-ready");
+        return screenshot;
+    }
+
+    private async Task<Bitmap?> CaptureWhenRewardHeaderReadyByPollingAsync(
         WindowSnapshot window,
         string runId,
         Stopwatch stopwatch,
