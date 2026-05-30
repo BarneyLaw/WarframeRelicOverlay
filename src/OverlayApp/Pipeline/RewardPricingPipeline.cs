@@ -31,8 +31,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly ILogger? _logger;
     private readonly bool _enableVisualReadinessGate;
     private readonly bool _saveDebugImages;
-    private static readonly TimeSpan VisualReadinessTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan VisualReadinessPollInterval = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan RewardHeaderTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
 
     public RewardPricingPipeline(
         IScreenCapturer capturer,
@@ -70,7 +70,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
         try
         {
-            screenshot = await CaptureWhenVisuallyReadyAsync(window, runId, stopwatch, cancellationToken);
+            screenshot = await CaptureWhenRewardHeaderReadyAsync(window, runId, stopwatch, cancellationToken);
             if (screenshot is null)
             {
                 LogWarning(runId,
@@ -85,39 +85,38 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var cardRects = await DetectCardBoundariesWhenReadyAsync(
-                window, runId, stopwatch, screenshot, cancellationToken);
-            screenshot = cardRects.Screenshot;
-
-            if (cardRects.Rectangles.Count == 0)
+            LogInfo(runId, "Layout detection starting.");
+            var cardRects = _layoutDetector.DetectCardBoundaries(
+                screenshot, screenshot.Width, screenshot.Height);
+            if (cardRects.Count == 0)
             {
                 LogWarning(runId,
-                    $"Layout detection found 0 card boundaries after readiness polling in bitmap {screenshot.Width}x{screenshot.Height}; " +
+                    $"Layout detection found 0 card boundaries in bitmap {screenshot.Width}x{screenshot.Height}; " +
                     $"elapsed={stopwatch.ElapsedMilliseconds} ms. Pricing will fail.");
                 return PipelineResult.Empty(window, stopwatch.Elapsed);
             }
 
             LogInfo(runId,
-                $"Layout detection found {cardRects.Rectangles.Count} card(s): {DescribeRects(cardRects.Rectangles)}; " +
+                $"Layout detection found {cardRects.Count} card(s): {DescribeRects(cardRects)}; " +
                 $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
 
-            var crops = new Bitmap?[cardRects.Rectangles.Count];
+            var crops = new Bitmap?[cardRects.Count];
             try
             {
-                for (int i = 0; i < cardRects.Rectangles.Count; i++)
+                for (int i = 0; i < cardRects.Count; i++)
                 {
-                    LogInfo(runId, $"Cropping card {i}: {DescribeRect(cardRects.Rectangles[i])}.");
-                    crops[i] = CropRegion(screenshot, cardRects.Rectangles[i]);
+                    LogInfo(runId, $"Cropping card {i}: {DescribeRect(cardRects[i])}.");
+                    crops[i] = CropRegion(screenshot, cardRects[i]);
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var tasks = new Task<CardResult>[cardRects.Rectangles.Count];
-                for (int i = 0; i < cardRects.Rectangles.Count; i++)
+                var tasks = new Task<CardResult>[cardRects.Count];
+                for (int i = 0; i < cardRects.Count; i++)
                 {
                     int index = i;
                     var crop = crops[i]!;
-                    var rect = cardRects.Rectangles[i];
+                    var rect = cardRects[i];
                     tasks[i] = Task.Run(
                         () => ProcessSingleCard(crop, rect, index, runId, cancellationToken),
                         cancellationToken);
@@ -226,54 +225,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         return BuildResult(index, cardRect, matchedItem, price, rawOcrText);
     }
 
-    private async Task<(Bitmap Screenshot, List<Rectangle> Rectangles)> DetectCardBoundariesWhenReadyAsync(
-        WindowSnapshot window,
-        string runId,
-        Stopwatch stopwatch,
-        Bitmap initialScreenshot,
-        CancellationToken cancellationToken)
-    {
-        Bitmap screenshot = initialScreenshot;
-        int layoutAttempt = 0;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            layoutAttempt++;
-
-            LogInfo(runId, $"Layout detection attempt {layoutAttempt} starting.");
-            var cardRects = _layoutDetector.DetectCardBoundaries(
-                screenshot, screenshot.Width, screenshot.Height);
-
-            if (cardRects.Count > 0)
-            {
-                LogInfo(runId,
-                    $"Layout detection attempt {layoutAttempt} found {cardRects.Count} card(s).");
-                return (screenshot, cardRects);
-            }
-
-            LogWarning(runId,
-                $"Layout detection attempt {layoutAttempt} found 0 card boundaries; " +
-                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
-
-            if (!_enableVisualReadinessGate || stopwatch.Elapsed >= VisualReadinessTimeout)
-                return (screenshot, cardRects);
-
-            await Task.Delay(VisualReadinessPollInterval, cancellationToken);
-
-            Bitmap? next = await CaptureWhenVisuallyReadyAsync(window, runId, stopwatch, cancellationToken);
-            if (next is null)
-                return (screenshot, cardRects);
-
-            if (!ReferenceEquals(next, screenshot))
-            {
-                screenshot.Dispose();
-                screenshot = next;
-            }
-        }
-    }
-
-    private async Task<Bitmap?> CaptureWhenVisuallyReadyAsync(
+    private async Task<Bitmap?> CaptureWhenRewardHeaderReadyAsync(
         WindowSnapshot window,
         string runId,
         Stopwatch stopwatch,
@@ -302,30 +254,34 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             LogInfo(runId,
                 $"CaptureWindow attempt {attempt} succeeded: bitmap={latest.Width}x{latest.Height}; " +
                 $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
-            SaveDebugImage(latest, runId, $"capture-{attempt:00}");
 
             if (!_enableVisualReadinessGate)
+            {
+                SaveDebugImage(latest, runId, "capture-ready");
                 return latest;
+            }
 
             bool isReady = TryDetectRewardHeader(latest, runId, attempt, out latestHeaderText);
             if (isReady)
             {
                 LogInfo(runId,
                     $"Reward header confirmed on attempt {attempt}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                SaveDebugImage(latest, runId, "capture-ready");
                 return latest;
             }
 
-            if (stopwatch.Elapsed >= VisualReadinessTimeout)
+            if (stopwatch.Elapsed >= RewardHeaderTimeout)
             {
                 LogWarning(runId,
-                    $"Reward header was not confirmed within {VisualReadinessTimeout.TotalMilliseconds:F0} ms; " +
-                    $"continuing with latest capture. Last header OCR=\"{NormalizeForLog(latestHeaderText ?? string.Empty)}\".");
-                return latest;
+                    $"Reward header was not confirmed within {RewardHeaderTimeout.TotalMilliseconds:F0} ms; " +
+                    $"aborting pricing. Last header OCR=\"{NormalizeForLog(latestHeaderText ?? string.Empty)}\".");
+                latest.Dispose();
+                return null;
             }
 
             LogInfo(runId,
-                $"Reward header not ready on attempt {attempt}; waiting {VisualReadinessPollInterval.TotalMilliseconds:F0} ms.");
-            await Task.Delay(VisualReadinessPollInterval, cancellationToken);
+                $"Reward header not ready on attempt {attempt}; waiting {RewardHeaderPollInterval.TotalMilliseconds:F0} ms.");
+            await Task.Delay(RewardHeaderPollInterval, cancellationToken);
         }
     }
 
@@ -337,20 +293,16 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         {
             Rectangle headerRect = ComputeRewardHeaderRegion(screenshot);
             using var headerCrop = CropRegion(screenshot, headerRect);
-            SaveDebugImage(headerCrop, runId, $"header-{attempt:00}");
 
             using var preprocessed = ImagePreprocessor.Prepare(headerCrop);
             headerText = _ocr.Recognize(preprocessed);
             string normalized = NormalizeHeaderText(headerText);
-
-            bool ready =
-                normalized.Contains("REWARD", StringComparison.Ordinal) ||
-                (normalized.Contains("VOID", StringComparison.Ordinal) &&
-                 normalized.Contains("FISSURE", StringComparison.Ordinal));
+            bool ready = IsRewardHeaderMatch(normalized);
 
             LogInfo(runId,
                 $"Header readiness OCR attempt {attempt}: ready={ready}, " +
-                $"region={DescribeRect(headerRect)}, text=\"{NormalizeForLog(headerText)}\".");
+                $"region={DescribeRect(headerRect)}, normalized=\"{normalized}\", " +
+                $"text=\"{NormalizeForLog(headerText)}\".");
 
             return ready;
         }
@@ -443,10 +395,10 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
     private static Rectangle ComputeRewardHeaderRegion(Bitmap screenshot)
     {
-        int x = (int)(screenshot.Width * 0.10);
-        int y = 0;
-        int width = (int)(screenshot.Width * 0.50);
-        int height = Math.Max(80, (int)(screenshot.Height * 0.14));
+        int x = (int)(screenshot.Width * 0.12);
+        int y = (int)(screenshot.Height * 0.015);
+        int width = (int)(screenshot.Width * 0.36);
+        int height = Math.Max(55, (int)(screenshot.Height * 0.09));
         return new Rectangle(x, y, width, height);
     }
 
@@ -466,6 +418,73 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             text.ToUpperInvariant()
                 .Where(char.IsLetterOrDigit)
                 .ToArray());
+    }
+
+    private static bool IsRewardHeaderMatch(string normalizedText)
+    {
+        if (normalizedText.Length < 4)
+            return false;
+
+        if (normalizedText.Contains("REWARD", StringComparison.Ordinal) ||
+            normalizedText.Contains("VOIDFISSURE", StringComparison.Ordinal) ||
+            normalizedText.Contains("RELICFISSURE", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return BestSimilarity(normalizedText, "VOIDFISSUREREWARDS") >= 0.62 ||
+               BestSimilarity(normalizedText, "VOIDFISSURE") >= 0.70 ||
+               BestSimilarity(normalizedText, "REWARDS") >= 0.70 ||
+               BestSimilarity(normalizedText, "RELICFISSUREREWARDS") >= 0.62;
+    }
+
+    private static double BestSimilarity(string candidate, string target)
+    {
+        if (candidate.Length == 0 || target.Length == 0)
+            return 0;
+
+        if (candidate.Length <= target.Length)
+            return Similarity(candidate, target);
+
+        double best = Similarity(candidate, target);
+        for (int i = 0; i <= candidate.Length - target.Length; i++)
+        {
+            double score = Similarity(candidate.Substring(i, target.Length), target);
+            if (score > best) best = score;
+        }
+
+        return best;
+    }
+
+    private static double Similarity(string left, string right)
+    {
+        int maxLength = Math.Max(left.Length, right.Length);
+        if (maxLength == 0) return 1;
+        return 1.0 - ((double)LevenshteinDistance(left, right) / maxLength);
+    }
+
+    private static int LevenshteinDistance(string left, string right)
+    {
+        var distances = new int[left.Length + 1, right.Length + 1];
+
+        for (int i = 0; i <= left.Length; i++)
+            distances[i, 0] = i;
+
+        for (int j = 0; j <= right.Length; j++)
+            distances[0, j] = j;
+
+        for (int i = 1; i <= left.Length; i++)
+        {
+            for (int j = 1; j <= right.Length; j++)
+            {
+                int cost = left[i - 1] == right[j - 1] ? 0 : 1;
+                distances[i, j] = Math.Min(
+                    Math.Min(distances[i - 1, j] + 1, distances[i, j - 1] + 1),
+                    distances[i - 1, j - 1] + cost);
+            }
+        }
+
+        return distances[left.Length, right.Length];
     }
 
     private static string ResolveDebugImageDirectory()
