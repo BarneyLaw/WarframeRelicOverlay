@@ -199,7 +199,7 @@ public partial class App : Application
                 sp.GetRequiredService<ILogger>()));
 
         // Application: layout detection
-        services.AddSingleton<IRewardLayoutDetector, IntensityProfileDetector>();
+        services.AddSingleton<IRewardLayoutDetector, WarmTextRowDetector>();
 
         // Application: reward screen detection (mode-dependent)
         services.AddSingleton<IRewardScreenDetector>(sp => settings.DetectionMode switch

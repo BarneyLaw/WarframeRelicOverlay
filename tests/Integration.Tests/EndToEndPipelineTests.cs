@@ -215,7 +215,7 @@ public sealed class EndToEndPipelineTests : IDisposable
  
         // Infrastructure — all real implementations
         var capturer = new TestScreenCapturer(imagePath);
-        var layoutDetector = new IntensityProfileDetector();
+        var layoutDetector = new WarmTextRowDetector();
         using var ocrEngine = new TesseractOcrEngine(TessDataDir, poolSize: 4);
         var rewardRepo = new JsonRewardRepository(itemsJsonPath);
         var matcher = new FuzzyRewardMatcher(rewardRepo);

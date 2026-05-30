@@ -7,21 +7,21 @@ using WarframeRelicOverlay.OverlayApp.Layout;
 using Xunit;
 
 /// <summary>
-/// Integration tests for <see cref="IntensityProfileDetector"/> against a real
+/// Integration tests for <see cref="WarmTextRowDetector"/> against a real
 /// Warframe screenshot.
 ///
 /// <b>What this test does:</b>
 /// <list type="number">
 ///   <item>Loads <c>test-images/whole_screen.png</c> — a full client-area capture
 ///         of the Warframe window during reward selection.</item>
-///   <item>Runs <see cref="IntensityProfileDetector.DetectCardBoundaries"/>.</item>
-///   <item>Asserts that 1–4 reward cards were found.</item>
+///   <item>Runs <see cref="WarmTextRowDetector.DetectCardBoundaries"/>.</item>
+///   <item>Asserts that 2–4 reward cards were found.</item>
 ///   <item>Crops each detected text region and saves it to
 ///         <c>image_output/card_{i}.png</c> next to the test binary for visual
 ///         inspection.</item>
 /// </list>
 /// </summary>
-public sealed class IntensityProfileDetectorIntegrationTests
+public sealed class WarmTextRowDetectorIntegrationTests
 {
     private static readonly string TestImagesDir =
         Path.Combine(AppContext.BaseDirectory, "test-images");
@@ -29,7 +29,7 @@ public sealed class IntensityProfileDetectorIntegrationTests
     private static readonly string ImageOutputDir =
         Path.Combine(AppContext.BaseDirectory, "image_output");
 
-    private readonly IntensityProfileDetector _detector = new();
+    private readonly WarmTextRowDetector _detector = new();
 
     [Fact]
     public void DetectCardBoundaries_OnWholeScreen_FindsRewardCardsAndSavesCrops()
@@ -46,8 +46,8 @@ public sealed class IntensityProfileDetectorIntegrationTests
 
         var cards = _detector.DetectCardBoundaries(screenshot, w, h);
 
-        cards.Count.Should().BeInRange(1, 4,
-            "whole_screen.png shows a Warframe reward-selection screen with 1–4 cards");
+        cards.Count.Should().BeInRange(2, 4,
+            "whole_screen.png shows a Warframe reward-selection screen with 2–4 cards");
 
         for (int i = 0; i < cards.Count; i++)
         {

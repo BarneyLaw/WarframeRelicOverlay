@@ -113,6 +113,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                 {
                     LogInfo(runId, $"Cropping card {i}: {DescribeRect(cardRects[i])}.");
                     crops[i] = CropRegion(screenshot, cardRects[i]);
+                    SaveDebugImage(crops[i]!, runId, $"card{i}-crop");
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -181,6 +182,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                 $"Card {index}: preprocessing starting; crop={crop.Width}x{crop.Height}; bounds={DescribeRect(cardRect)}.");
             using var preprocessed = ImagePreprocessor.Prepare(crop);
             LogInfo(runId, $"Card {index}: preprocessing complete; bitmap={preprocessed.Width}x{preprocessed.Height}.");
+            SaveDebugImage(preprocessed, runId, $"card{index}-preprocessed");
 
             LogInfo(runId, $"Card {index}: OCR starting.");
             rawOcrText = _ocr.Recognize(preprocessed);
