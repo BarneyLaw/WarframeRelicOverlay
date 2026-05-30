@@ -6,7 +6,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Threading;
 using WarframeRelicOverlay.Core;
 using WarframeRelicOverlay.Infrastructure.Platform;
@@ -34,7 +33,6 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private readonly IProcessTracker _processTracker;
     private readonly OverlayStateMachine _stateMachine;
     private Timer? _positionTimer;
-    private Window? _overlayWindow;
 
     // ── Bindable state ──────────────────────────────────────────────
 
@@ -117,13 +115,9 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
 
     /// <summary>
     /// Start polling the Warframe window position so the overlay tracks it.
-    /// The <paramref name="overlayWindow"/> is used to obtain WPF's own
-    /// device-to-logical DPI transform, which avoids mismatches between
-    /// Win32 <c>GetDpiForMonitor</c> and WPF's coordinate system.
     /// </summary>
-    public void StartPositionTracking(Window overlayWindow)
+    public void StartPositionTracking()
     {
-        _overlayWindow = overlayWindow;
         _positionTimer?.Dispose();
         _positionTimer = new Timer(UpdateWindowPosition, null,
             TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
@@ -163,8 +157,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
             foreach (var card in result.Cards)
             {
                 // Convert physical-pixel card bounds to WPF logical units
-                // using the cached WPF DPI scale (from PresentationSource,
-                // not from Win32 GetDpiForMonitor — they can differ).
+                // using the DPI scale cached from Warframe's monitor.
                 double scaleX = _dpiScaleX;
                 double scaleY = _dpiScaleY;
 
@@ -264,48 +257,25 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         var handle = _processTracker.MainWindowHandle;
         if (handle == nint.Zero) return;
 
-        // Get the physical pixel bounds from Win32 (thread-safe).
         var snapshot = _windowTracker.TryGetBounds(handle);
         if (snapshot is null || !snapshot.Value.IsValid) return;
 
         var w = snapshot.Value;
 
-        // Convert physical pixels → WPF logical units on the UI
-        // thread using WPF's own transform.  This avoids the mismatch
-        // between GetDpiForMonitor and WPF's internal DPI handling
-        // (which differs in Per-Monitor DPI Aware v2 mode and on
-        // multi-monitor setups).
+        // Use the DPI reported for Warframe's own monitor so the
+        // logical coordinates are always derived from the correct
+        // reference — eliminating the stale-DPI bug that occurred
+        // when the overlay window hadn't yet settled on the same
+        // monitor as Warframe.
         RunOnUi(() =>
         {
-            var source = _overlayWindow is not null
-                ? PresentationSource.FromVisual(_overlayWindow)
-                : null;
+            WindowLeft   = w.LogicalX;
+            WindowTop    = w.LogicalY;
+            WindowWidth  = w.LogicalWidth;
+            WindowHeight = w.LogicalHeight;
 
-            if (source?.CompositionTarget is not null)
-            {
-                var transform = source.CompositionTarget.TransformFromDevice;
-
-                // TransformFromDevice.M11 = 1/dpiScaleX, M22 = 1/dpiScaleY
-                WindowLeft   = w.ClientX     * transform.M11;
-                WindowTop    = w.ClientY     * transform.M22;
-                WindowWidth  = w.ClientWidth * transform.M11;
-                WindowHeight = w.ClientHeight * transform.M22;
-
-                // Cache the WPF-correct scale factors for ShowPrices
-                _dpiScaleX = 1.0 / transform.M11;
-                _dpiScaleY = 1.0 / transform.M22;
-            }
-            else
-            {
-                // Fallback: use the Win32 DPI values (better than nothing)
-                WindowLeft   = w.LogicalX;
-                WindowTop    = w.LogicalY;
-                WindowWidth  = w.LogicalWidth;
-                WindowHeight = w.LogicalHeight;
-
-                _dpiScaleX = w.DpiScaleX;
-                _dpiScaleY = w.DpiScaleY;
-            }
+            _dpiScaleX = w.DpiScaleX;
+            _dpiScaleY = w.DpiScaleY;
         });
     }
 

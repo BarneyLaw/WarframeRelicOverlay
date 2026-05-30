@@ -43,6 +43,13 @@ public partial class App : Application
 
     private void OnStartup(object sender, StartupEventArgs e)
     {
+        // Belt-and-suspenders: the app.manifest already declares
+        // PerMonitorV2, but if it was stripped (e.g. some single-file
+        // publish configs) this ensures we still get true physical
+        // pixels from the Win32 geometry/capture APIs. Must run before
+        // any HWND is created.
+        Infrastructure.Platform.Win32Interop.TryEnablePerMonitorV2();
+
         bool debugMode = e.Args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
 
         // ── Load settings ───────────────────────────────────────────
@@ -115,6 +122,9 @@ public partial class App : Application
         services.AddSingleton<IProcessTracker, WarframeProcessTracker>();
         services.AddSingleton<IWindowTracker, WarframeWindowTracker>();
 
+        // Infrastructure: focus monitoring (alt-tab → hide overlay / idle)
+        // services.AddSingleton<FocusWatcher>();
+
         // Infrastructure: screen capture
         services.AddSingleton<IScreenCapturer, GdiScreenCapturer>();
 
@@ -186,7 +196,7 @@ public partial class App : Application
         // Start services
         _processTracker = _serviceProvider.GetRequiredService<IProcessTracker>();
         _processTracker.Start();
-        _viewModel.StartPositionTracking(overlayWindow);
+        _viewModel.StartPositionTracking();
         _coordinator.Start();
 
         Debug.WriteLine("[App] Normal mode started.");
