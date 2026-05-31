@@ -43,19 +43,56 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Close button — the only interactive control on the overlay.
+             Per-pixel hit-testing in code-behind (WM_NCHITTEST) keeps every
+             other pixel click-through to the game. -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Foreground" Value="#DDFFFFFF" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg"
+                                CornerRadius="4"
+                                Background="#CC1A1A2E"
+                                BorderBrush="#33FFFFFF"
+                                BorderThickness="1">
+                            <TextBlock Text="&#x2715;"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       FontSize="{TemplateBinding FontSize}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#EEC0392B" />
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="#66FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- All content visibility controlled here — window itself is always "visible"
          but fully transparent, so toggling this Grid avoids window show/hide flicker. -->
     <Grid Visibility="{Binding IsOverlayVisible, Converter={StaticResource BoolToVisibility}}" 
-          Background="#11FF0000">
+          >
 
-        <!-- ═══ Status indicator — top center ═══ -->
-        <Border HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin="0,12,0,0"
-                Padding="14,6"
+        <!-- ═══ Status indicator + close button — top center ═══ -->
+        <StackPanel Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="0,12,0,0">
+        <Border Padding="14,6"
                 CornerRadius="4"
+                VerticalAlignment="Center"
                 Background="#CC1A1A2E"
                 BorderBrush="#33FFFFFF"
                 BorderThickness="1"
@@ -98,6 +135,15 @@
                            VerticalAlignment="Center" />
             </StackPanel>
         </Border>
+
+            <!-- Close button — quits the overlay app without Task Manager. -->
+            <Button x:Name="CloseButton"
+                    Style="{StaticResource CloseButtonStyle}"
+                    Margin="8,0,0,0"
+                    VerticalAlignment="Center"
+                    ToolTip="Close overlay"
+                    Click="OnCloseClicked" />
+        </StackPanel>
 
         <!-- ═══ Loading spinner — center of window ═══ -->
         <Grid HorizontalAlignment="Center"

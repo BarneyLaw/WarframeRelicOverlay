@@ -202,8 +202,26 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         RunOnUi(() =>
         {
             UpdateStatusForState(current);
-            IsOverlayVisible = current != OverlayState.Idle;
+            _overlayStateActive = current != OverlayState.Idle;
+            ApplyOverlayVisibility();
         });
+    }
+
+    // The overlay is only shown when the state machine wants it AND Warframe
+    // is the focused window — so alt-tabbing away hides it. Both inputs are
+    // combined here; callers set one flag then re-evaluate.
+    private bool _overlayStateActive;
+    private bool _gameHasFocus = true;
+
+    private void ApplyOverlayVisibility() =>
+        IsOverlayVisible = _overlayStateActive && _gameHasFocus;
+
+    private void SetGameFocus(bool focused)
+    {
+        if (_gameHasFocus == focused) return;
+        _gameHasFocus = focused;
+        _logger?.LogInfo($"Warframe focus changed: focused={focused}; overlay visibility re-evaluated.");
+        RunOnUi(ApplyOverlayVisibility);
     }
 
     private void UpdateStatusForState(OverlayState state)
@@ -244,9 +262,13 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         var handle = _processTracker.MainWindowHandle;
         if (handle == nint.Zero)
         {
+            SetGameFocus(false);
             LogPositionFailure("MainWindowHandle is zero — process not attached or window not yet created");
             return;
         }
+
+        // Hide the overlay whenever Warframe isn't the focused window (alt-tab).
+        SetGameFocus(_windowTracker.IsForeground(handle));
 
         // Track Warframe's render surface, not the full monitor. In
         // borderless/fullscreen these are usually the same, but in

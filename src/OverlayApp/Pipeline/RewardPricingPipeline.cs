@@ -247,12 +247,11 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         }
 
         LogInfo(runId,
-            $"Header OCR polling disabled; polling for reward card layout every " +
+            $"Polling for a settled reward card layout every " +
             $"{RewardCardPollInterval.TotalMilliseconds:F0} ms for up to " +
             $"{RewardCardReadinessTimeout.TotalMilliseconds:F0} ms.");
 
         var readinessStopwatch = Stopwatch.StartNew();
-        Bitmap? latest = null;
         int attempt = 0;
 
         while (true)
@@ -260,11 +259,10 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             cancellationToken.ThrowIfCancellationRequested();
             attempt++;
 
-            latest?.Dispose();
             LogInfo(runId, $"Card readiness capture attempt {attempt} starting.");
-            latest = _capturer.CaptureWindow(window);
+            Bitmap? candidate = _capturer.CaptureWindow(window);
 
-            if (latest is null)
+            if (candidate is null)
             {
                 LogWarning(runId,
                     $"Card readiness capture attempt {attempt} returned null after " +
@@ -273,33 +271,127 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             }
 
             LogInfo(runId,
-                $"Card readiness capture attempt {attempt} succeeded: bitmap={latest.Width}x{latest.Height}; " +
+                $"Card readiness capture attempt {attempt} succeeded: bitmap={candidate.Width}x{candidate.Height}; " +
                 $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
 
-            var cardRects = _layoutDetector.DetectCardBoundaries(latest, latest.Width, latest.Height);
-            if (cardRects.Count > 0)
+            var candidateRects = _layoutDetector.DetectCardBoundaries(candidate, candidate.Width, candidate.Height);
+            candidate.Dispose();
+
+            if (candidateRects.Count > 0)
             {
                 LogInfo(runId,
-                    $"Reward cards visible on attempt {attempt}: {cardRects.Count} card(s), " +
-                    $"bounds={DescribeRects(cardRects)}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
-                return await RecaptureAfterRewardTextSettlesAsync(
-                    window, latest, runId, stopwatch, cancellationToken);
+                    $"Reward cards visible on attempt {attempt}: {candidateRects.Count} card(s), " +
+                    $"bounds={DescribeRects(candidateRects)}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
+
+                // The card slide/zoom-in animation can momentarily present
+                // 2-4 evenly-spaced warm runs before the cards reach their
+                // final positions, so a single positive frame is not proof the
+                // layout is settled. Wait for the text to settle, recapture,
+                // and only proceed once the settled frame's layout matches what
+                // we just saw — otherwise the card count and positions used for
+                // cropping would disagree with the frame they came from.
+                Bitmap? settled = await CaptureSettledLayoutAsync(
+                    window, candidateRects, runId, stopwatch, cancellationToken);
+                if (settled is not null)
+                    return settled;
+
+                LogInfo(runId,
+                    $"Reward layout had not settled on attempt {attempt}; continuing to poll.");
+            }
+            else
+            {
+                LogInfo(runId, $"Reward cards not visible on attempt {attempt}.");
             }
 
             if (readinessStopwatch.Elapsed >= RewardCardReadinessTimeout)
             {
                 LogWarning(runId,
-                    $"Reward cards were not detected within {RewardCardReadinessTimeout.TotalMilliseconds:F0} ms; " +
-                    "returning the last capture so layout diagnostics can report the failure.");
-                SaveDebugImage(latest, runId, "capture-no-cards");
-                return latest;
+                    $"Reward layout did not settle within {RewardCardReadinessTimeout.TotalMilliseconds:F0} ms; " +
+                    "returning a final capture so layout diagnostics can report the failure.");
+                Bitmap? fallback = _capturer.CaptureWindow(window);
+                if (fallback is not null)
+                    SaveDebugImage(fallback, runId, "capture-no-cards");
+                return fallback;
             }
 
             LogInfo(runId,
-                $"Reward cards not visible on attempt {attempt}; waiting " +
-                $"{RewardCardPollInterval.TotalMilliseconds:F0} ms.");
+                $"Waiting {RewardCardPollInterval.TotalMilliseconds:F0} ms before the next readiness capture.");
             await Task.Delay(RewardCardPollInterval, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Waits for the reward text to finish rendering, recaptures, and re-runs
+    /// layout detection. Returns the settled capture only when its detected
+    /// layout matches <paramref name="expectedRects"/> (same card count and
+    /// aligned card centres); otherwise returns <c>null</c> so the caller keeps
+    /// polling. This stops the pipeline from cropping a frame captured mid-
+    /// animation, where the card count and positions differ from the final UI.
+    /// </summary>
+    private async Task<Bitmap?> CaptureSettledLayoutAsync(
+        WindowSnapshot window,
+        IReadOnlyList<Rectangle> expectedRects,
+        string runId,
+        Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        LogInfo(runId,
+            $"Waiting {RewardTextSettleDelay.TotalMilliseconds:F0} ms for reward text to settle before final capture.");
+        await Task.Delay(RewardTextSettleDelay, cancellationToken);
+
+        LogInfo(runId, "Final reward capture starting after settle delay.");
+        Bitmap? settled = _capturer.CaptureWindow(window);
+
+        if (settled is null)
+        {
+            LogWarning(runId,
+                $"Final reward capture returned null after {stopwatch.ElapsedMilliseconds} ms.");
+            return null;
+        }
+
+        LogInfo(runId,
+            $"Final reward capture succeeded: bitmap={settled.Width}x{settled.Height}; " +
+            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+
+        var settledRects = _layoutDetector.DetectCardBoundaries(settled, settled.Width, settled.Height);
+        if (!LayoutsAgree(expectedRects, settledRects))
+        {
+            LogInfo(runId,
+                $"Settled layout ({settledRects.Count} card(s): {DescribeRects(settledRects)}) does not match the " +
+                $"pre-settle layout ({expectedRects.Count} card(s)); discarding capture and re-polling.");
+            settled.Dispose();
+            return null;
+        }
+
+        LogInfo(runId,
+            $"Settled layout confirmed: {settledRects.Count} card(s) match the pre-settle detection.");
+        SaveDebugImage(settled, runId, "capture-ready");
+        return settled;
+    }
+
+    /// <summary>
+    /// True when two detected layouts describe the same settled set of cards:
+    /// identical card count and each card's horizontal centre aligned within a
+    /// fraction of the card width. Horizontal centres are the stable invariant
+    /// once cards stop sliding; vertical position is ignored because a wrapped
+    /// second line can shift a card's crop top without changing which card it is.
+    /// </summary>
+    private static bool LayoutsAgree(
+        IReadOnlyList<Rectangle> expected, IReadOnlyList<Rectangle> actual)
+    {
+        if (expected.Count == 0 || expected.Count != actual.Count)
+            return false;
+
+        for (int i = 0; i < expected.Count; i++)
+        {
+            double expectedCenter = expected[i].X + expected[i].Width / 2.0;
+            double actualCenter = actual[i].X + actual[i].Width / 2.0;
+            double tolerance = Math.Max(8.0, expected[i].Width * 0.25);
+            if (Math.Abs(expectedCenter - actualCenter) > tolerance)
+                return false;
+        }
+
+        return true;
     }
 
     private Bitmap? CaptureOnce(WindowSnapshot window, string runId, Stopwatch stopwatch, string debugName)

@@ -54,9 +54,12 @@ public class OverlayCoordinatorTests : IDisposable
             ClientWidth: 1920, ClientHeight: 1080,
             DpiScaleX: 1.0, DpiScaleY: 1.0);
 
+        /// <summary>Whether the tracked window reports as focused.</summary>
+        public bool Foreground { get; set; } = true;
+
         public WindowSnapshot? TryGetBounds(nint windowHandle) => SnapshotToReturn;
         public WindowSnapshot? TryGetMonitorBounds(nint windowHandle) => null;
-        public bool IsForeground(nint windowHandle) => true;
+        public bool IsForeground(nint windowHandle) => Foreground;
     }
 
     /// <summary>
@@ -309,6 +312,27 @@ public class OverlayCoordinatorTests : IDisposable
         sm.Current.Should().Be(OverlayState.Displaying);
         _output.LastResult.Should().NotBeNull();
         _output.LastResult!.HasCards.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RewardDetected_WhileGameNotFocused_DoesNotPrice()
+    {
+        var sm = new OverlayStateMachine();
+        _pipeline.PrepareSuccessResult();
+        _windowTracker.Foreground = false;  // player alt-tabbed away
+
+        using var coordinator = CreateCoordinator(settings: MakeSettings("EELog"), sm: sm);
+        coordinator.Start();
+
+        _processTracker.SimulateStart();
+        sm.Current.Should().Be(OverlayState.Tracking);
+
+        _detector.SimulateRewardDetected();
+
+        // The reward log fired but the game is not focused, so the coordinator
+        // must ignore it: no pipeline run, no state change out of Tracking.
+        _pipeline.ExecutionCount.Should().Be(0, "pricing must not run while alt-tabbed");
+        sm.Current.Should().Be(OverlayState.Tracking);
     }
 
     // ── OCR mode — streak management ────────────────────────────

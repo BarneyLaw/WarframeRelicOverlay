@@ -149,7 +149,17 @@ public sealed class OverlayCoordinator : IDisposable
         private void OnRewardDetected()
     {
         if (_disposed) return;
- 
+
+        // Don't trigger pricing while the player is alt-tabbed away from the
+        // game. The reward log/OCR can still fire in the background, but the
+        // overlay is hidden and the user isn't looking at the reward screen.
+        if (!_windowTracker.IsForeground(_processTracker.MainWindowHandle))
+        {
+            Debug.WriteLine("[Coordinator] Reward detected but Warframe is not focused — ignoring.");
+            _logger?.LogInfo("[Coordinator] Reward detected while Warframe not focused; skipping pricing.");
+            return;
+        }
+
         bool isInstantConfirm =
             _settings.DetectionMode is "EELog" or "Manual";
  

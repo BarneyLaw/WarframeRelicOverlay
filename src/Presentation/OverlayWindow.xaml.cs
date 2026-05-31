@@ -3,6 +3,7 @@ namespace WarframeRelicOverlay.Presentation;
 using System;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 
@@ -17,7 +18,16 @@ using WarframeRelicOverlay.Infrastructure.Platform;
 /// </summary>
 public partial class OverlayWindow : Window
 {
+    private const int WM_NCHITTEST = 0x0084;
+    private static readonly nint HTTRANSPARENT = -1;
+    private static readonly nint HTCLIENT = 1;
+
     private readonly ILogger? _logger;
+
+    // When true, the window is click-through everywhere except interactive
+    // controls (the close button), decided per-pixel in WndProc. When false
+    // (debug mode), the window captures all input so it can take keyboard focus.
+    private bool _clickThrough = true;
 
     public OverlayWindow() : this(null) { }
 
@@ -39,11 +49,66 @@ public partial class OverlayWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        SetClickThrough(true);
 
         nint hwnd = new WindowInteropHelper(this).Handle;
+
+        // Hook WM_NCHITTEST so we can make the window click-through per-pixel:
+        // every point reports HTTRANSPARENT (falls through to Warframe) except
+        // where an interactive control sits. This is what lets the close button
+        // be clickable while the rest of the overlay never blocks the game.
+        HwndSource.FromHwnd(hwnd)?.AddHook(WndProc);
+
         _logger?.LogInfo($"OverlayWindow SourceInitialized: hwnd 0x{hwnd:X}, " +
                          $"Size {Width}x{Height}, Left/Top ({Left},{Top}).");
+    }
+
+    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if (msg == WM_NCHITTEST && _clickThrough)
+        {
+            handled = true;
+            return IsOverInteractiveControl(lParam) ? HTCLIENT : HTTRANSPARENT;
+        }
+
+        return nint.Zero;
+    }
+
+    /// <summary>
+    /// True when the cursor (given in the WM_NCHITTEST lParam, in physical
+    /// screen pixels) is over an interactive overlay control — currently just
+    /// the close button. Used to decide whether a hit is click-through.
+    /// </summary>
+    private bool IsOverInteractiveControl(nint lParam)
+    {
+        long packed = lParam.ToInt64();
+        int x = unchecked((short)(packed & 0xFFFF));
+        int y = unchecked((short)((packed >> 16) & 0xFFFF));
+
+        try
+        {
+            Point local = PointFromScreen(new Point(x, y));
+            if (VisualTreeHelper.HitTest(this, local)?.VisualHit is DependencyObject hit)
+            {
+                for (DependencyObject? d = hit; d is not null; d = VisualTreeHelper.GetParent(d))
+                {
+                    if (ReferenceEquals(d, CloseButton))
+                        return true;
+                }
+            }
+        }
+        catch
+        {
+            // PointFromScreen can throw while the HWND is tearing down —
+            // treat as not-interactive so the click falls through.
+        }
+
+        return false;
+    }
+
+    private void OnCloseClicked(object sender, RoutedEventArgs e)
+    {
+        _logger?.LogInfo("Close button clicked — shutting down the overlay.");
+        Application.Current.Shutdown();
     }
 
     /// <summary>
@@ -66,23 +131,11 @@ public partial class OverlayWindow : Window
     }
 
     /// <summary>
-    /// Toggles click-through on the window. When enabled, all mouse
-    /// events pass through to the window below (Warframe). When
-    /// disabled, the window captures mouse input (for the future
-    /// settings menu).
+    /// Toggles click-through on the window. When enabled (the default), all
+    /// mouse events pass through to the window below (Warframe) except over
+    /// interactive controls, decided per-pixel in <see cref="WndProc"/>. When
+    /// disabled, the window captures all input (used by the debug simulator so
+    /// it can receive keyboard focus).
     /// </summary>
-    public void SetClickThrough(bool enabled)
-    {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return;
-
-        nint exStyle = Win32Interop.GetWindowLongPtr(hwnd, Win32Interop.GWL_EXSTYLE);
-
-        if (enabled)
-            exStyle |= Win32Interop.WS_EX_TRANSPARENT | Win32Interop.WS_EX_LAYERED;
-        else
-            exStyle &= ~(nint)Win32Interop.WS_EX_TRANSPARENT;
-
-        Win32Interop.SetWindowLongPtr(hwnd, Win32Interop.GWL_EXSTYLE, exStyle);
-    }
+    public void SetClickThrough(bool enabled) => _clickThrough = enabled;
 }
