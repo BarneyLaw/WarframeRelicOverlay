@@ -105,9 +105,10 @@ public partial class OverlayWindow : Window
         return false;
     }
 
-    private void OnCloseClicked(object sender, RoutedEventArgs e)
+    private void OnCloseClicked(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        _logger?.LogInfo("Close button clicked — shutting down the overlay.");
+        e.Handled = true;
+        _logger?.LogInfo("Close button pressed — shutting down the overlay.");
         Application.Current.Shutdown();
     }
 

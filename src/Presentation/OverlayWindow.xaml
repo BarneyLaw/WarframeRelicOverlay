@@ -136,13 +136,17 @@
             </StackPanel>
         </Border>
 
-            <!-- Close button — quits the overlay app without Task Manager. -->
+            <!-- Close button — quits the overlay app without Task Manager.
+                 Handled on press, not Click: pressing it activates the overlay
+                 (stealing focus from Warframe), which would otherwise hide the
+                 overlay via the off-focus rule before a release-based Click
+                 could fire. -->
             <Button x:Name="CloseButton"
                     Style="{StaticResource CloseButtonStyle}"
                     Margin="8,0,0,0"
                     VerticalAlignment="Center"
                     ToolTip="Close overlay"
-                    Click="OnCloseClicked" />
+                    PreviewMouseLeftButtonDown="OnCloseClicked" />
         </StackPanel>
 
         <!-- ═══ Loading spinner — center of window ═══ -->
