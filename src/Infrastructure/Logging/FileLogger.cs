@@ -14,11 +14,14 @@ public sealed class FileLogger : ILogger
     private readonly object _lockObject = new();
     private const int MaxLogFileSizeBytes = 5_000_000; // 5 MB
 
+    /// <summary>Absolute path of the active log file.</summary>
+    public string LogFilePath => _logFilePath;
+
     /// <summary>
     /// Initializes a new instance of the FileLogger.
     /// The log file is created in the application's local AppData directory.
     /// </summary>
-    public FileLogger()
+    public FileLogger(bool clearOnStart = true)
     {
         string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string logDirectory = Path.Combine(appDataPath, "WarframeRelicOverlay");
@@ -28,8 +31,22 @@ public sealed class FileLogger : ILogger
 
         _logFilePath = Path.Combine(logDirectory, "overlay.log");
 
-        // If log file is too large, archive it
-        RollLogFileIfNeeded();
+        if (clearOnStart)
+            ClearLogFile();
+        else
+            RollLogFileIfNeeded();
+    }
+
+    private void ClearLogFile()
+    {
+        try
+        {
+            File.WriteAllText(_logFilePath, string.Empty);
+        }
+        catch
+        {
+            Debug.WriteLine("Failed to clear log file");
+        }
     }
 
     public void LogInfo(string message)

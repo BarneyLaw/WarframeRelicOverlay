@@ -14,6 +14,16 @@ public interface IWindowTracker
     WindowSnapshot? TryGetBounds(nint windowHandle);
  
     /// <summary>
+    /// Returns a snapshot whose <c>ClientX/Y/Width/Height</c> describe
+    /// the full physical bounds of the monitor containing
+    /// <paramref name="windowHandle"/>. Used as a fallback when client
+    /// bounds are temporarily unavailable.
+    /// Returns <c>null</c> if the handle is invalid or the monitor
+    /// cannot be determined.
+    /// </summary>
+    WindowSnapshot? TryGetMonitorBounds(nint windowHandle);
+
+    /// <summary>
     /// Returns <c>true</c> if the given window is the current foreground
     /// (focused) window.
     /// </summary>

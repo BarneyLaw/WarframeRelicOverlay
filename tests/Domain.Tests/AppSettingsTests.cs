@@ -22,7 +22,7 @@ public class AppSettingsTests
         settings.EeLogPathOverride.Should().BeNull();
         settings.DetectionIntervalMs.Should().Be(250);
         settings.DetectionStreak.Should().Be(2);
-        settings.StabilizationDelayMs.Should().Be(250);
+        settings.StabilizationDelayMs.Should().Be(0);
         settings.PriceCacheTtlMinutes.Should().Be(5);
         settings.OverlayOpacity.Should().Be(1.0);
         settings.PriceFontSizeOverride.Should().Be(0);

@@ -1,7 +1,7 @@
 namespace WarframeRelicOverlay.Domain.Pricing;
 
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices.Marshalling;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Market;
 
 /// <summary>
@@ -16,6 +16,7 @@ public sealed class RewardPriceCache : IPriceProvider
 {
     private readonly IWarframeMarketAPI _marketApi;
     private readonly TimeSpan _ttl;
+    private readonly ILogger? _logger;
     // thread-safe dictionary to store cached prices along with their timestamps.
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(); 
 
@@ -33,46 +34,40 @@ public sealed class RewardPriceCache : IPriceProvider
     /// How long a cached price is valid. Defaults to 5 minutes.
     /// Intended to be driven by AppSettings.PriceCacheTtlMinutes.
     /// </param>
-    public RewardPriceCache(IWarframeMarketAPI api, TimeSpan? ttl = null)
+    public RewardPriceCache(IWarframeMarketAPI api, TimeSpan? ttl = null, ILogger? logger = null)
     {
         _marketApi = api ?? throw new ArgumentNullException(nameof(api));
         _ttl = ttl ?? TimeSpan.FromMinutes(5);
+        _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task<int?> GetPriceAsync(string itemName)
+    public Task<int?> GetPriceAsync(string itemName)
     {
-        if (string.IsNullOrWhiteSpace(itemName))
-            return null;
-
-        if (_cache.TryGetValue(itemName, out var entry) && DateTime.UtcNow - entry.Timestamp < _ttl)
-        {
-            return entry.Price;
-        }
-
-        int? price = await _marketApi.GetLowestSellPriceAsync(itemName);
-        _cache[itemName] = new CacheEntry { Price = price, Timestamp = DateTime.UtcNow };
-        return price;
+        return GetPriceAsync(itemName, CancellationToken.None);
     }
 
-    /// <summary>
-    /// Overload of <see cref="GetPriceAsync(string)"/> that accepts a CancellationToken, which is passed through to the underlying API call.
-    /// </summary>
-    /// <param name="itemName"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    public async Task<int?> GetPriceAsync(string itemName, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<int?> GetPriceAsync(string itemName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(itemName))
+        {
+            _logger?.LogWarning("[PriceCache] Skipping lookup: item slug was empty.");
             return null;
+        }
 
         if (_cache.TryGetValue(itemName, out var entry) && DateTime.UtcNow - entry.Timestamp < _ttl)
         {
+            _logger?.LogInfo(
+                $"[PriceCache] Hit for '{itemName}': {(entry.Price.HasValue ? $"{entry.Price.Value}p" : "no price")}.");
             return entry.Price;
         }
 
+        _logger?.LogInfo($"[PriceCache] Miss for '{itemName}'; querying market.");
         int? price = await _marketApi.GetLowestSellPriceAsync(itemName, cancellationToken);
         _cache[itemName] = new CacheEntry { Price = price, Timestamp = DateTime.UtcNow };
+        _logger?.LogInfo(
+            $"[PriceCache] Stored '{itemName}': {(price.HasValue ? $"{price.Value}p" : "no price")}.");
         return price;
     }
 

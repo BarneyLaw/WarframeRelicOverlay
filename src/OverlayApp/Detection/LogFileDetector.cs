@@ -12,7 +12,7 @@ using WarframeRelicOverlay.Infrastructure.Platform;
 /// <see cref="RewardScreenDetected"/> the instant the game writes
 /// its reward trigger line.
 ///
-/// <b>Why this works:</b> Warframe logs <c>"GotRewards"</c> at the
+/// <b>Why this works:</b> Warframe logs <c>"Got rewards"</c> at the
 /// exact moment the reward selection UI is created internally —
 /// before the animation even starts playing.  Tailing the log gives
 /// us a zero-latency, zero-CPU trigger with no OCR cost.
@@ -32,9 +32,16 @@ public sealed class LogFileDetector : IRewardScreenDetector
  
     /// <summary>
     /// Trigger phrases scanned in newly-appended EE.log content.
+    /// Screen-open phrases intentionally fire before reward cards are
+    /// guaranteed visible; the pricing pipeline gates on card layout.
     /// </summary>
     private static readonly (string Phrase, string EventName)[] RewardTriggers =
     [
+        ("VoidProjections: OpenVoidProjectionRewardScreen", RewardDetectedEvent),
+        ("Created /Lotus/Interface/ProjectionRewardChoice.swf", RewardDetectedEvent),
+        ("ProjectionRewardChoice.lua: Relic rewards initialized", RewardDetectedEvent),
+        ("ProjectionRewardChoice.lua: Got rewards", RewardDetectedEvent),
+        ("Got rewards", RewardDetectedEvent),
         ("GotRewards", RewardDetectedEvent),
     ];
  

@@ -73,7 +73,7 @@ public sealed class FileTriggerWatcher : IDisposable
     /// <param name="triggers">
     /// Trigger phrases to scan for.  Each entry is a
     /// <c>(Phrase, EventName)</c> tuple: when <c>Phrase</c> is found
-    /// (ordinal, case-sensitive) in newly-appended content,
+    /// (ordinal, case-insensitive) in newly-appended content,
     /// <see cref="OnTriggered"/> fires with <c>EventName</c>.
     /// </param>
     /// <param name="pollInterval">
@@ -320,9 +320,11 @@ public sealed class FileTriggerWatcher : IDisposable
                 string newContent = reader.ReadToEnd();
                 _lastPosition = stream.Position;
 
+                var triggeredEvents = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var (phrase, eventName) in _triggers)
                 {
-                    if (newContent.Contains(phrase, StringComparison.Ordinal))
+                    if (newContent.Contains(phrase, StringComparison.OrdinalIgnoreCase) &&
+                        triggeredEvents.Add(eventName))
                     {
                         OnTriggered?.Invoke(eventName);
                     }
