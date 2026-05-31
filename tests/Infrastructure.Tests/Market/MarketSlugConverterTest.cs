@@ -24,10 +24,12 @@ public class MarketSlugConverterTest
         string result1 = MarketSlugConverter.ToSlug(itemName1);
         string result2 = MarketSlugConverter.ToSlug(itemName2);
         string result3 = MarketSlugConverter.ToSlug(itemName3);
+        string result4 = MarketSlugConverter.ToSlug(itemName4);
 
         result1.Should().Be(expected1);
         result2.Should().Be(expected2);
         result3.Should().Be(expected3);
+        result4.Should().Be(expected4);
     }
 
     [Fact]
