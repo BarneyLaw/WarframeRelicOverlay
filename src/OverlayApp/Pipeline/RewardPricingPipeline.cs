@@ -35,6 +35,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan RewardCardReadinessTimeout = TimeSpan.FromSeconds(12);
     private static readonly TimeSpan RewardCardPollInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan RewardTextSettleDelay = TimeSpan.FromMilliseconds(500);
     private const double RewardHeaderX = 0.0729;
     private const double RewardHeaderY = 0.0324;
     private const double RewardHeaderWidth = 0.401;
@@ -281,8 +282,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                 LogInfo(runId,
                     $"Reward cards visible on attempt {attempt}: {cardRects.Count} card(s), " +
                     $"bounds={DescribeRects(cardRects)}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
-                SaveDebugImage(latest, runId, "capture-ready");
-                return latest;
+                return await RecaptureAfterRewardTextSettlesAsync(
+                    window, latest, runId, stopwatch, cancellationToken);
             }
 
             if (readinessStopwatch.Elapsed >= RewardCardReadinessTimeout)
@@ -362,8 +363,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             {
                 LogInfo(runId,
                     $"Reward header confirmed on attempt {attempt}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
-                SaveDebugImage(latest, runId, "capture-ready");
-                return latest;
+                return await RecaptureAfterRewardTextSettlesAsync(
+                    window, latest, runId, stopwatch, cancellationToken);
             }
 
             if (stopwatch.Elapsed >= RewardHeaderTimeout)
@@ -379,6 +380,37 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                 $"Reward header not ready on attempt {attempt}; waiting {RewardHeaderPollInterval.TotalMilliseconds:F0} ms.");
             await Task.Delay(RewardHeaderPollInterval, cancellationToken);
         }
+    }
+
+    private async Task<Bitmap?> RecaptureAfterRewardTextSettlesAsync(
+        WindowSnapshot window,
+        Bitmap initialCapture,
+        string runId,
+        Stopwatch stopwatch,
+        CancellationToken cancellationToken)
+    {
+        LogInfo(runId,
+            $"Waiting {RewardTextSettleDelay.TotalMilliseconds:F0} ms for reward text to settle before final capture.");
+
+        initialCapture.Dispose();
+        await Task.Delay(RewardTextSettleDelay, cancellationToken);
+
+        LogInfo(runId, "Final reward capture starting after settle delay.");
+        Bitmap? settledCapture = _capturer.CaptureWindow(window);
+
+        if (settledCapture is null)
+        {
+            LogWarning(runId,
+                $"Final reward capture returned null after {stopwatch.ElapsedMilliseconds} ms.");
+            return null;
+        }
+
+        LogInfo(runId,
+            $"Final reward capture succeeded: bitmap={settledCapture.Width}x{settledCapture.Height}; " +
+            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+
+        SaveDebugImage(settledCapture, runId, "capture-ready");
+        return settledCapture;
     }
 
     private bool TryDetectRewardHeader(Bitmap screenshot, string runId, int attempt, out string headerText)

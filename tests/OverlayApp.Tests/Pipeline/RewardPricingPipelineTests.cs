@@ -3,6 +3,7 @@ namespace WarframeRelicOverlay.Tests.OverlayApp.Pipeline;
 using System.Drawing;
 using System.Drawing.Imaging;
 using FluentAssertions;
+using WarframeRelicOverlay.Core;
 using WarframeRelicOverlay.Domain.Matching;
 using WarframeRelicOverlay.Domain.Models;
 using WarframeRelicOverlay.Domain.Pricing;
@@ -25,8 +26,15 @@ public class RewardPricingPipelineTests
     private sealed class FakeCapturer : IScreenCapturer
     {
         public Bitmap? BitmapToReturn { get; set; }
+        public Queue<Bitmap?> BitmapsToReturn { get; } = new();
+        public int CaptureCount { get; private set; }
 
-        public Bitmap? CaptureWindow(WindowSnapshot window) => BitmapToReturn;
+        public Bitmap? CaptureWindow(WindowSnapshot window)
+        {
+            CaptureCount++;
+            return BitmapsToReturn.Count > 0 ? BitmapsToReturn.Dequeue() : BitmapToReturn;
+        }
+
         public Bitmap? CaptureRegion(Rectangle physicalRegion) => null;
     }
 
@@ -462,6 +470,42 @@ public class RewardPricingPipelineTests
         var result = await pipeline.ExecuteAsync(TestWindow);
 
         result.Elapsed.Should().BeGreaterThan(TimeSpan.Zero);
+    }
+
+    // ── Visual readiness gate ─────────────────────────────────
+
+    [Fact]
+    public async Task VisualReadinessGate_RecapturesAfterRewardTextSettles()
+    {
+        var capturer = new FakeCapturer();
+        capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
+        capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
+
+        var ocr = new MappedOcrEngine();
+        ocr.Map(200, "Ash Prime Chassis Blueprint");
+
+        var matcher = new FakeMatcher();
+        matcher.Matches["Ash Prime Chassis Blueprint"] =
+            new RewardItem("Ash Prime Chassis Blueprint");
+
+        var pricer = new FakePricer();
+        pricer.Prices["ash_prime_chassis_blueprint"] = 15;
+
+        var pipeline = new RewardPricingPipeline(
+            capturer,
+            new FakeLayoutDetector { CardsToReturn = [new(100, 400, 200, 60)] },
+            ocr,
+            matcher,
+            pricer,
+            settings: new AppSettings());
+
+        var result = await pipeline.ExecuteAsync(TestWindow);
+
+        capturer.CaptureCount.Should().Be(2,
+            "the readiness capture should be discarded and replaced after the settle delay");
+        result.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(450));
+        result.Cards.Should().ContainSingle();
+        result.Cards[0].DisplayText.Should().Be("15p");
     }
 
     // ── Constructor null guards ─────────────────────────────────
