@@ -3,6 +3,7 @@
 using System.Drawing;
 using FluentAssertions;
 using WarframeRelicOverlay.Core;
+using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
@@ -218,9 +219,34 @@ public class OverlayCoordinatorTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Records reward runs in memory and signals when a run is written so
+    /// tests can wait out the fire-and-forget flush.
+    /// </summary>
+    private sealed class FakeHistoryRecorder : IRewardHistoryRecorder
+    {
+        public List<RewardRunRecord> Records { get; } = new();
+        public ManualResetEventSlim Recorded { get; } = new(false);
+
+        public void Record(RewardRunRecord record)
+        {
+            lock (Records) { Records.Add(record); }
+            Recorded.Set();
+        }
+    }
+
     // ── Shared setup ────────────────────────────────────────────
 
     private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Waits for the state machine to reach Displaying. The pipeline runs on a
+    /// background thread and sets <c>PricesShown</c> a moment before firing the
+    /// state transition, so asserting the state immediately after the output
+    /// signal is racy.
+    /// </summary>
+    private static void WaitForDisplaying(OverlayStateMachine sm) =>
+        SpinWait.SpinUntil(() => sm.Current == OverlayState.Displaying, WaitTimeout);
 
     private static AppSettings MakeSettings(string mode = "EELog") => new()
     {
@@ -238,7 +264,8 @@ public class OverlayCoordinatorTests : IDisposable
 
     private OverlayCoordinator CreateCoordinator(
         AppSettings? settings = null,
-        OverlayStateMachine? sm = null)
+        OverlayStateMachine? sm = null,
+        IRewardHistoryRecorder? historyRecorder = null)
     {
         return new OverlayCoordinator(
             sm ?? new OverlayStateMachine(),
@@ -247,7 +274,8 @@ public class OverlayCoordinatorTests : IDisposable
             _detector,
             _pipeline,
             _output,
-            settings ?? MakeSettings());
+            settings ?? MakeSettings(),
+            historyRecorder: historyRecorder);
     }
 
     public void Dispose()
@@ -309,6 +337,7 @@ public class OverlayCoordinatorTests : IDisposable
         _output.PricesShown.Wait(WaitTimeout).Should()
             .BeTrue("pipeline should complete and show prices");
 
+        WaitForDisplaying(sm);
         sm.Current.Should().Be(OverlayState.Displaying);
         _output.LastResult.Should().NotBeNull();
         _output.LastResult!.HasCards.Should().BeTrue();
@@ -333,6 +362,38 @@ public class OverlayCoordinatorTests : IDisposable
         // must ignore it: no pipeline run, no state change out of Tracking.
         _pipeline.ExecutionCount.Should().Be(0, "pricing must not run while alt-tabbed");
         sm.Current.Should().Be(OverlayState.Tracking);
+    }
+
+    // ── Reward history ──────────────────────────────────────────
+
+    [Fact]
+    public void RewardHistory_IsWritten_WhenScreenEnds_NotAtPricing()
+    {
+        var sm = new OverlayStateMachine();
+        _pipeline.PrepareSuccessResult(cardCount: 3);
+        var recorder = new FakeHistoryRecorder();
+
+        using var coordinator = CreateCoordinator(
+            settings: MakeSettings("EELog"), sm: sm, historyRecorder: recorder);
+        coordinator.Start();
+
+        _processTracker.SimulateStart();
+        _detector.SimulateRewardDetected();
+
+        _output.PricesShown.Wait(WaitTimeout).Should().BeTrue("pipeline should price and display");
+        WaitForDisplaying(sm);
+        sm.Current.Should().Be(OverlayState.Displaying);
+
+        // While the reward screen is still showing, nothing is persisted yet.
+        recorder.Records.Should().BeEmpty("history must be written only once the screen ends");
+
+        // Reward screen ends → run is flushed to the data file.
+        _detector.SimulateRewardScreenExited();
+        sm.Current.Should().Be(OverlayState.Tracking);
+
+        recorder.Recorded.Wait(WaitTimeout).Should().BeTrue("history should flush on screen exit");
+        recorder.Records.Should().ContainSingle();
+        recorder.Records[0].Items.Should().HaveCount(3);
     }
 
     // ── OCR mode — streak management ────────────────────────────
@@ -374,6 +435,7 @@ public class OverlayCoordinatorTests : IDisposable
         // Pipeline fires asynchronously.
         _output.PricesShown.Wait(WaitTimeout).Should().BeTrue();
 
+        WaitForDisplaying(sm);
         sm.Current.Should().Be(OverlayState.Displaying);
     }
 
@@ -422,6 +484,7 @@ public class OverlayCoordinatorTests : IDisposable
         _detector.SimulateRewardDetected();  // hint 2 → confirmed
 
         _output.PricesShown.Wait(WaitTimeout).Should().BeTrue();
+        WaitForDisplaying(sm);
         sm.Current.Should().Be(OverlayState.Displaying);
     }
 
@@ -482,6 +545,7 @@ public class OverlayCoordinatorTests : IDisposable
         _processTracker.SimulateStart();
         _detector.SimulateRewardDetected();
         _output.PricesShown.Wait(WaitTimeout).Should().BeTrue();
+        WaitForDisplaying(sm);
         sm.Current.Should().Be(OverlayState.Displaying);
 
         // Detector says the reward screen is gone.
@@ -614,6 +678,7 @@ public class OverlayCoordinatorTests : IDisposable
         _detector.SimulateRewardDetected();
 
         _output.PricesShown.Wait(WaitTimeout).Should().BeTrue();
+        WaitForDisplaying(sm);
         sm.Current.Should().Be(OverlayState.Displaying);
     }
 

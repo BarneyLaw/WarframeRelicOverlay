@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WarframeRelicOverlay.Core;
 using WarframeRelicOverlay.Domain.Matching;
 using WarframeRelicOverlay.Domain.Pricing;
+using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Market;
 using WarframeRelicOverlay.Infrastructure.OCR;
@@ -152,6 +153,12 @@ public partial class App : Application
         // Infrastructure: platform
         services.AddSingleton<IProcessTracker, WarframeProcessTracker>();
         services.AddSingleton<IWindowTracker, WarframeWindowTracker>();
+
+        // Infrastructure: reward run history (JSON data file written on screen exit)
+        services.AddSingleton<IRewardHistoryRecorder>(
+            sp => new JsonRewardHistoryRecorder(
+                Path.Combine(dataDir, "reward-history.json"),
+                sp.GetRequiredService<ILogger>()));
 
         // Infrastructure: focus monitoring (alt-tab → hide overlay / idle)
         // services.AddSingleton<FocusWatcher>();

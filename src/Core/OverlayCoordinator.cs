@@ -2,6 +2,7 @@ namespace WarframeRelicOverlay.Core;
 
 using System.Diagnostics;
 using WarframeRelicOverlay.OverlayApp.Detection;
+using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
@@ -36,6 +37,7 @@ public sealed class OverlayCoordinator : IDisposable
     private readonly IRewardPipeline _pipeline;
     private readonly IOverlayOutput _output;
     private readonly AppSettings _settings;
+    private readonly IRewardHistoryRecorder? _historyRecorder;
     private readonly ILogger? _logger;
 
     // Mutable states, guarded by a lock
@@ -43,6 +45,7 @@ public sealed class OverlayCoordinator : IDisposable
     private int _streakCount;
     private CancellationTokenSource? _pipelineCts;
     private Timer? _displayTimeoutTimer;
+    private RewardRunRecord? _pendingHistory;
     private bool _started;
     private bool _disposed;
 
@@ -62,7 +65,8 @@ public sealed class OverlayCoordinator : IDisposable
         IRewardPipeline pipeline,
         IOverlayOutput output,
         AppSettings settings,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IRewardHistoryRecorder? historyRecorder = null)
     {
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _processTracker = processTracker ?? throw new ArgumentNullException(nameof(processTracker));
@@ -72,6 +76,7 @@ public sealed class OverlayCoordinator : IDisposable
         _output = output ?? throw new ArgumentNullException(nameof(output));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _logger = logger;
+        _historyRecorder = historyRecorder;
     }
 
     /// <summary>
@@ -224,7 +229,12 @@ public sealed class OverlayCoordinator : IDisposable
     {
         Debug.WriteLine(
             $"[Coordinator] {previous} → {current} (trigger: {trigger})");
- 
+
+        // The reward screen has ended once we leave Displaying — persist the
+        // run that was just shown (whether it exited normally or the game closed).
+        if (previous == OverlayState.Displaying && current != OverlayState.Displaying)
+            FlushRewardHistory();
+
         switch (current)
         {
             case OverlayState.Tracking:
@@ -358,6 +368,7 @@ public sealed class OverlayCoordinator : IDisposable
                     $"priced={result.Cards.Count(c => c.PricePlatinum.HasValue)}, " +
                     $"elapsed={result.Elapsed.TotalMilliseconds:F0} ms.");
  
+                StorePendingRewardHistory(result);
                 _output.ShowPrices(result);
                 _stateMachine.Fire(OverlayTrigger.PricingCompleted);
             }
@@ -385,6 +396,53 @@ public sealed class OverlayCoordinator : IDisposable
             _stateMachine.Fire(OverlayTrigger.PricingFailed);
         }
 
+    }
+
+    // Reward history
+
+    /// <summary>
+    /// Captures the just-priced run (timestamped now, when the reward was
+    /// received) and holds it until the reward screen ends, at which point
+    /// <see cref="FlushRewardHistory"/> writes it to the data file.
+    /// </summary>
+    private void StorePendingRewardHistory(PipelineResult result)
+    {
+        if (_historyRecorder is null) return;
+
+        var record = new RewardRunRecord
+        {
+            Timestamp = DateTimeOffset.Now,
+            Items = result.Cards
+                .OrderBy(c => c.Index)
+                .Select(c => new RewardRunItem
+                {
+                    Name = c.MatchedItem?.CanonicalName,
+                    Price = c.PricePlatinum,
+                })
+                .ToList(),
+        };
+
+        lock (_lock) { _pendingHistory = record; }
+    }
+
+    /// <summary>
+    /// Writes the pending run to the reward-history file once the screen has
+    /// ended. Best-effort: the recorder swallows its own I/O errors, and the
+    /// write is offloaded so this state-machine callback stays fast.
+    /// </summary>
+    private void FlushRewardHistory()
+    {
+        RewardRunRecord? record;
+        lock (_lock)
+        {
+            record = _pendingHistory;
+            _pendingHistory = null;
+        }
+
+        if (record is null || _historyRecorder is null) return;
+
+        var recorder = _historyRecorder;
+        _ = Task.Run(() => recorder.Record(record));
     }
 
     // Display timeout
