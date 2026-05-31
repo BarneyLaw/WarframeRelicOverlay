@@ -144,12 +144,8 @@ public sealed class WarmTextRowDetector : IRewardLayoutDetector
             .First();
 
         double[] cardCenters = rep.Centers;
-        int n = cardCenters.Length;
 
-        double pitch = MedianSpacing(cardCenters);
-        int cardWidth = Math.Max(minSegWidth, (int)(pitch * CardWidthFactor));
-
-        // ── Build the bottom-anchored crop rectangles ────────────────
+        // ── Build the bottom-anchored crop band ──────────────────────
         // The cluster's top row is the highest detected name line; extend
         // up one line for a possible wrapped line, down half a line for
         // descenders.
@@ -160,6 +156,31 @@ public sealed class WarmTextRowDetector : IRewardLayoutDetector
         int top = Math.Max(0, clusterTop - lineHeight - 4);
         int bottom = Math.Min(windowHeight, clusterBot + lineHeight / 2);
         int height = Math.Max(1, bottom - top);
+
+        // ── Recover cards whose name wrapped to a second line ────────
+        // A single representative row only sees cards whose text crosses
+        // that row. A name that wraps (e.g. "Silva & Aegis Prime Blade")
+        // leaves just its short second line on the shared row, which falls
+        // below the minimum segment width and drops the card. Projecting the
+        // warm mask down the whole crop band collapses both lines of a
+        // wrapped name into one wide column run, so every card is counted.
+        // Prefer the projection only when it recovers more cards and the
+        // fuller set is still evenly spaced, to avoid trusting stray glints.
+        double[] projected = DetectEvenlySpacedColumns(
+            warm, top - searchTop, bottom - searchTop, bandHeight, windowWidth, gapClose, minSegWidth);
+        if (projected.Length > cardCenters.Length &&
+            projected.Length >= MinCards && projected.Length <= MaxCards &&
+            SpacingCv(projected) <= MaxSpacingCv)
+        {
+            Debug.WriteLine(
+                $"[WarmTextRowDetector] Column projection recovered {projected.Length} card(s) " +
+                $"(rows saw {cardCenters.Length}); using the projected centres.");
+            cardCenters = projected;
+        }
+
+        int n = cardCenters.Length;
+        double pitch = MedianSpacing(cardCenters);
+        int cardWidth = Math.Max(minSegWidth, (int)(pitch * CardWidthFactor));
 
         var rects = new List<Rectangle>(n);
         foreach (double cx in cardCenters)
@@ -262,6 +283,54 @@ public sealed class WarmTextRowDetector : IRewardLayoutDetector
     {
         if (end - start >= minWidth)
             segments.Add(new Segment(start, end));
+    }
+
+    /// <summary>
+    /// Projects the warm mask vertically over rows
+    /// [<paramref name="rowStart"/>, <paramref name="rowEnd"/>] (clamped to the
+    /// band) into a 1-D column-occupancy profile, then segments it into name
+    /// runs using the same gap-close and minimum-width rules as
+    /// <see cref="SegmentRow"/>.  A column counts as occupied when <i>any</i>
+    /// row in the range is warm, so a card whose name spans two lines still
+    /// yields a single wide run.  Returns the centre of each run.
+    /// </summary>
+    private static double[] DetectEvenlySpacedColumns(
+        bool[,] warm, int rowStart, int rowEnd, int bandHeight, int width, int gapClose, int minWidth)
+    {
+        rowStart = Math.Max(0, rowStart);
+        rowEnd = Math.Min(bandHeight - 1, rowEnd);
+        if (rowEnd < rowStart)
+            return [];
+
+        var segments = new List<Segment>();
+        int runStart = -1;
+        int lastOn = -1;
+
+        for (int x = 0; x < width; x++)
+        {
+            bool on = false;
+            for (int y = rowStart; y <= rowEnd; y++)
+            {
+                if (warm[y, x]) { on = true; break; }
+            }
+
+            if (on)
+            {
+                if (runStart < 0)
+                    runStart = x;
+                lastOn = x;
+            }
+            else if (runStart >= 0 && x - lastOn > gapClose)
+            {
+                AddSegment(segments, runStart, lastOn, minWidth);
+                runStart = -1;
+            }
+        }
+
+        if (runStart >= 0)
+            AddSegment(segments, runStart, lastOn, minWidth);
+
+        return segments.Select(s => (s.Start + s.End) / 2.0).ToArray();
     }
 
     // ── Row clustering ───────────────────────────────────────────────

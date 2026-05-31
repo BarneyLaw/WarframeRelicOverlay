@@ -66,4 +66,26 @@ public sealed class WarmTextRowDetectorIntegrationTests
                 $"card_{i}.png should have been written to {ImageOutputDir}");
         }
     }
+
+    /// <summary>
+    /// Regression test for the dropped-card mismatch: <c>reward_4cards_silva_wrapped.png</c>
+    /// is a real four-card capture whose leftmost reward, "Silva &amp; Aegis Prime
+    /// Blade", wraps to two lines.  On the row shared by the three single-line
+    /// names, that card contributes only its short second line ("Blade"), which
+    /// is below the minimum segment width, so a row-only detector reported just
+    /// three cards.  The detector must project the warm mask down the crop band
+    /// to recover the wrapped card and return all four.
+    /// </summary>
+    [Fact]
+    public void DetectCardBoundaries_CountsWrappedCard_WhenSecondLineIsNarrow()
+    {
+        string imagePath = Path.Combine(TestImagesDir, "reward_4cards_silva_wrapped.png");
+        File.Exists(imagePath).Should().BeTrue($"fixture must be present at {imagePath}");
+
+        using var screenshot = new Bitmap(imagePath);
+        var cards = _detector.DetectCardBoundaries(screenshot, screenshot.Width, screenshot.Height);
+
+        cards.Should().HaveCount(4,
+            "the screen shows four cards even though the leftmost name wraps to two lines");
+    }
 }
