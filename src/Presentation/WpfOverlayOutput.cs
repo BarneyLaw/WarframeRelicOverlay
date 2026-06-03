@@ -92,9 +92,9 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
     /// state-driven visibility.
     /// </para>
     /// </summary>
-    private const bool ForceAlwaysShown = true;
+    private const bool ForceAlwaysShown = false;
 
-    private bool _manualShown = ForceAlwaysShown;
+    private bool _manualShown;
     private bool _isVisible;
     private bool _spinnerVisible;
     private DispatcherTimer? _trackerTimer;
@@ -524,6 +524,98 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
 
         double scale = window.LogicalHeight / AutoFontReferenceHeightDip;
         return Math.Clamp(AutoFontReferenceSizeDip * scale, 12.0, 32.0);
+    }
+
+    // ── Demo result generation ──────────────────────────────────────
+
+    /// <summary>
+    /// Builds a synthetic <see cref="PipelineResult"/> with four cards
+    /// laid out the way Warframe's reward selection screen typically
+    /// renders them, and stores it as the most-recent result so
+    /// <see cref="ApplyVisibility"/> will draw it.  Fetches the live
+    /// Warframe window snapshot so the demo cards align with the real
+    /// game UI.  No-op when Warframe is not running or its window
+    /// cannot be measured.
+    /// </summary>
+    private void PushDemoResult()
+    {
+        nint handle = _processTracker.MainWindowHandle;
+        if (handle == nint.Zero) return;
+
+        WindowSnapshot? snapshot = _windowTracker.TryGetBounds(handle);
+        if (snapshot is null || !snapshot.Value.IsValid) return;
+
+        var window = snapshot.Value;
+        var cards = BuildDemoCards(window);
+
+        var result = new PipelineResult
+        {
+            Cards = cards,
+            Window = window,
+            Elapsed = TimeSpan.Zero,
+        };
+
+        lock (_lock)
+        {
+            _lastResult = result;
+            _lastSnapshot = window;
+        }
+
+        _logger.LogInfo(
+            $"Pushed demo PipelineResult with {cards.Count} synthetic cards.");
+    }
+
+    /// <summary>
+    /// Lays out four reward-card rectangles in the lower-centre band
+    /// of the Warframe client area, mirroring the in-game layout.
+    /// Each rectangle is in physical pixels relative to the bitmap
+    /// origin so the same DPI / offset maths the real pipeline uses
+    /// applies unchanged.
+    /// </summary>
+    private static IReadOnlyList<CardResult> BuildDemoCards(WindowSnapshot window)
+    {
+        // Reward cards in the in-game UI sit roughly between 30 % and
+        // 70 % of the window width and at ~75 % of the window height,
+        // each card occupying ~10 % of the window width.  These
+        // numbers match the screenshot the user shared.
+        const double bandLeftFraction  = 0.30;
+        const double bandRightFraction = 0.70;
+        const double cardCenterYFraction = 0.78;
+        const double cardWidthFraction = 0.085;
+        const double cardHeightFraction = 0.05;
+
+        int count = DemoPrices.Length;
+        double bandWidth = bandRightFraction - bandLeftFraction;
+        double cardWidth = cardWidthFraction * window.ClientWidth;
+        double cardHeight = cardHeightFraction * window.ClientHeight;
+        double cardCenterY = cardCenterYFraction * window.ClientHeight;
+
+        var cards = new List<CardResult>(count);
+        for (int i = 0; i < count; i++)
+        {
+            // Distribute evenly across the band.  +0.5 puts each card
+            // at the midpoint of its own slot rather than the edge.
+            double centerXFraction = bandLeftFraction
+                + bandWidth * (i + 0.5) / count;
+            double centerX = centerXFraction * window.ClientWidth;
+
+            var bounds = new Rectangle(
+                x: (int)Math.Round(centerX - cardWidth / 2.0),
+                y: (int)Math.Round(cardCenterY - cardHeight / 2.0),
+                width: (int)Math.Round(cardWidth),
+                height: (int)Math.Round(cardHeight));
+
+            cards.Add(new CardResult
+            {
+                Index = i,
+                BoundsInWindow = bounds,
+                MatchedItem = new RewardItem(DemoNames[i], IsUntradeable: i == 0),
+                PricePlatinum = i == 0 ? null : DemoPrices[i],
+                RawOcrText = "demo",
+            });
+        }
+
+        return cards;
     }
 
     // ── Window show / hide ──────────────────────────────────────────
