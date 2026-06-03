@@ -3,11 +3,9 @@ namespace WarframeRelicOverlay.Presentation;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Windows;
 using System.Windows.Threading;
 using WarframeRelicOverlay.Core;
-using WarframeRelicOverlay.Domain.Models;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
@@ -78,59 +76,11 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
     private readonly object _lock = new();
     private PipelineResult? _lastResult;
     private WindowSnapshot? _lastSnapshot;
-
-    /// <summary>
-    /// Force the overlay window to behave as if the user had
-    /// permanently pressed the manual-show hotkey.  Bypasses the
-    /// state-machine-driven visibility logic so the overlay stays on
-    /// as long as Warframe is the foreground window.
-    ///
-    /// <para>
-    /// Used as a temporary workaround while the EE.log trigger
-    /// phrase that fires the reward-screen state transition is being
-    /// identified.  Set to <c>false</c> to restore normal
-    /// state-driven visibility.
-    /// </para>
-    /// </summary>
-    private const bool ForceAlwaysShown = false;
-
     private bool _manualShown;
     private bool _isVisible;
     private bool _spinnerVisible;
     private DispatcherTimer? _trackerTimer;
     private bool _disposed;
-
-    // ── Demo mode ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// While <c>true</c>, every <see cref="ToggleManualShown"/> call
-    /// also pushes (or clears) a synthetic four-card pipeline result
-    /// so the overlay renders sample price cards (15p, 20p, 45p, 120p)
-    /// without a real relic mission.  Lets the user preview the UI
-    /// while reward-screen detection is being debugged.  Set to
-    /// <c>false</c> to restore real-only rendering.
-    /// </summary>
-    private const bool UseDemoPrices = true;
-
-    /// <summary>
-    /// Sample platinum prices used by <see cref="PushDemoResult"/>.
-    /// The last value is intentionally the highest so the
-    /// best-price highlight border is visually verifiable.
-    /// </summary>
-    private static readonly int[] DemoPrices = [15, 20, 45, 120];
-
-    /// <summary>
-    /// Display names for the synthetic demo cards.  Used as the
-    /// <see cref="RewardItem.CanonicalName"/> so future enhancements
-    /// (subtitle, ducat lookup) have something realistic to work with.
-    /// </summary>
-    private static readonly string[] DemoNames =
-    [
-        "Forma Blueprint",
-        "Nagantaka Prime Receiver",
-        "Hydroid Prime Chassis Blueprint",
-        "Baruuk Prime Chassis Blueprint",
-    ];
 
     // ── Construction ────────────────────────────────────────────────
 
@@ -229,37 +179,11 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
     /// overlay window appears regardless of the pipeline state, as
     /// long as Warframe is the foreground window and a valid
     /// <see cref="WindowSnapshot"/> is available.
-    ///
-    /// <para>
-    /// While <see cref="ForceAlwaysShown"/> is <c>true</c> the manual
-    /// flag stays pinned to <c>true</c> regardless of hotkey presses,
-    /// so the overlay never flickers off due to a stray keypress.
-    /// </para>
-    ///
-    /// <para>
-    /// While <see cref="UseDemoPrices"/> is <c>true</c> the toggle
-    /// also pushes (or clears) a synthetic four-card pipeline result
-    /// so the overlay renders sample price cards even when EE.log
-    /// reward detection is non-functional.  Useful for previewing the
-    /// UI without a relic mission.
-    /// </para>
     /// </summary>
     public void ToggleManualShown()
     {
-        bool nowShown;
-        lock (_lock)
-        {
-            _manualShown = ForceAlwaysShown || !_manualShown;
-            nowShown = _manualShown;
-        }
-
-        if (UseDemoPrices)
-        {
-            if (nowShown) PushDemoResult();
-            else lock (_lock) { _lastResult = null; }
-        }
-
-        _logger.LogInfo($"Manual overlay shown = {nowShown}");
+        lock (_lock) { _manualShown = !_manualShown; }
+        _logger.LogInfo($"Manual overlay shown = {_manualShown}");
         InvokeOnUi(() => ApplyVisibility());
     }
 
@@ -524,98 +448,6 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
 
         double scale = window.LogicalHeight / AutoFontReferenceHeightDip;
         return Math.Clamp(AutoFontReferenceSizeDip * scale, 12.0, 32.0);
-    }
-
-    // ── Demo result generation ──────────────────────────────────────
-
-    /// <summary>
-    /// Builds a synthetic <see cref="PipelineResult"/> with four cards
-    /// laid out the way Warframe's reward selection screen typically
-    /// renders them, and stores it as the most-recent result so
-    /// <see cref="ApplyVisibility"/> will draw it.  Fetches the live
-    /// Warframe window snapshot so the demo cards align with the real
-    /// game UI.  No-op when Warframe is not running or its window
-    /// cannot be measured.
-    /// </summary>
-    private void PushDemoResult()
-    {
-        nint handle = _processTracker.MainWindowHandle;
-        if (handle == nint.Zero) return;
-
-        WindowSnapshot? snapshot = _windowTracker.TryGetBounds(handle);
-        if (snapshot is null || !snapshot.Value.IsValid) return;
-
-        var window = snapshot.Value;
-        var cards = BuildDemoCards(window);
-
-        var result = new PipelineResult
-        {
-            Cards = cards,
-            Window = window,
-            Elapsed = TimeSpan.Zero,
-        };
-
-        lock (_lock)
-        {
-            _lastResult = result;
-            _lastSnapshot = window;
-        }
-
-        _logger.LogInfo(
-            $"Pushed demo PipelineResult with {cards.Count} synthetic cards.");
-    }
-
-    /// <summary>
-    /// Lays out four reward-card rectangles in the lower-centre band
-    /// of the Warframe client area, mirroring the in-game layout.
-    /// Each rectangle is in physical pixels relative to the bitmap
-    /// origin so the same DPI / offset maths the real pipeline uses
-    /// applies unchanged.
-    /// </summary>
-    private static IReadOnlyList<CardResult> BuildDemoCards(WindowSnapshot window)
-    {
-        // Reward cards in the in-game UI sit roughly between 30 % and
-        // 70 % of the window width and at ~75 % of the window height,
-        // each card occupying ~10 % of the window width.  These
-        // numbers match the screenshot the user shared.
-        const double bandLeftFraction  = 0.30;
-        const double bandRightFraction = 0.70;
-        const double cardCenterYFraction = 0.78;
-        const double cardWidthFraction = 0.085;
-        const double cardHeightFraction = 0.05;
-
-        int count = DemoPrices.Length;
-        double bandWidth = bandRightFraction - bandLeftFraction;
-        double cardWidth = cardWidthFraction * window.ClientWidth;
-        double cardHeight = cardHeightFraction * window.ClientHeight;
-        double cardCenterY = cardCenterYFraction * window.ClientHeight;
-
-        var cards = new List<CardResult>(count);
-        for (int i = 0; i < count; i++)
-        {
-            // Distribute evenly across the band.  +0.5 puts each card
-            // at the midpoint of its own slot rather than the edge.
-            double centerXFraction = bandLeftFraction
-                + bandWidth * (i + 0.5) / count;
-            double centerX = centerXFraction * window.ClientWidth;
-
-            var bounds = new Rectangle(
-                x: (int)Math.Round(centerX - cardWidth / 2.0),
-                y: (int)Math.Round(cardCenterY - cardHeight / 2.0),
-                width: (int)Math.Round(cardWidth),
-                height: (int)Math.Round(cardHeight));
-
-            cards.Add(new CardResult
-            {
-                Index = i,
-                BoundsInWindow = bounds,
-                MatchedItem = new RewardItem(DemoNames[i], IsUntradeable: i == 0),
-                PricePlatinum = i == 0 ? null : DemoPrices[i],
-                RawOcrText = "demo",
-            });
-        }
-
-        return cards;
     }
 
     // ── Window show / hide ──────────────────────────────────────────

@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 
 /// <summary>
@@ -34,16 +35,18 @@ public partial class OverlayWindow : Window
     // ── State ───────────────────────────────────────────────────────
 
     private readonly List<UIElement> _priceLabels = [];
+    private readonly ILogger? _logger;
     private Storyboard? _spinnerStoryboard;
 
     /// <summary>
     /// Constructs the window without showing it.  The composition root
     /// resolves this exactly once and registers it with the DI
     /// container; visibility is controlled by
-    /// <see cref="WpfOverlayOutput"/>.
+    /// <see cref="OverlayViewModel"/>.
     /// </summary>
-    public OverlayWindow()
+    public OverlayWindow(ILogger? logger = null)
     {
+        _logger = logger;
         InitializeComponent();
 
         // Closing the overlay window means the user wants to quit.
@@ -196,6 +199,38 @@ public partial class OverlayWindow : Window
     public void HideSpinner()
     {
         SpinnerHost.Visibility = Visibility.Collapsed;
+    }
+
+    // ── Physical bounds (driven by OverlayViewModel) ────────────────
+
+    /// <summary>
+    /// Positions and sizes the overlay window using physical screen
+    /// pixels.  Called by <see cref="OverlayViewModel"/> via the
+    /// <c>PhysicalBoundsChanged</c> event.  Converts from physical
+    /// pixels to WPF logical units (DIPs) using the window's current
+    /// DPI transform so the overlay aligns precisely with Warframe's
+    /// client area regardless of display scaling.
+    /// </summary>
+    /// <param name="x">Physical-pixel left edge of the Warframe client area.</param>
+    /// <param name="y">Physical-pixel top edge of the Warframe client area.</param>
+    /// <param name="width">Physical-pixel width of the Warframe client area.</param>
+    /// <param name="height">Physical-pixel height of the Warframe client area.</param>
+    public void SetPhysicalBounds(int x, int y, int width, int height)
+    {
+        if (width <= 0 || height <= 0) return;
+
+        // Get the DPI scale for this window so we can convert physical → logical.
+        var source = PresentationSource.FromVisual(this);
+        double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+        double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+
+        Left = x * dpiX;
+        Top = y * dpiY;
+        Width = width * dpiX;
+        Height = height * dpiY;
+
+        LabelCanvas.Width = width * dpiX;
+        LabelCanvas.Height = height * dpiY;
     }
 
     // ── Card construction ───────────────────────────────────────────

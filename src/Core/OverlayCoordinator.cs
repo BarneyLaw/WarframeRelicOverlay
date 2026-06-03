@@ -1,11 +1,10 @@
 namespace WarframeRelicOverlay.Core;
 
 using System.Diagnostics;
-using WarframeRelicOverlay.Infrastructure.Logging;
-using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
+using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
 
@@ -46,6 +45,8 @@ public sealed class OverlayCoordinator : IDisposable
     private int _streakCount;
     private CancellationTokenSource? _pipelineCts;
     private Timer? _displayTimeoutTimer;
+    private Timer? _heartbeatTimer;
+    private DateTime _lastEventUtc = DateTime.UtcNow;
     private RewardRunRecord? _pendingHistory;
     private bool _started;
     private bool _disposed;

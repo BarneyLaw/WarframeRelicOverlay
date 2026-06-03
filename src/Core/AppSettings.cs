@@ -23,6 +23,25 @@ public sealed class AppSettings
     public bool DebugMode { get; set; } = false;
     public bool SaveDebugImages { get; set; } = false;
 
+    /// <summary>
+    /// Phrases scanned (case-insensitively) in newly-appended EE.log
+    /// content to detect the relic reward selection screen.  Warframe
+    /// has used different phrasings across versions, so several
+    /// candidates are tried; the overlay fires when <b>any</b> of them
+    /// appears.  Editable in <c>settings.json</c> so a future game
+    /// change can be handled without rebuilding.
+    /// </summary>
+    public List<string> RewardTriggerPhrases { get; set; } =
+    [
+        "GotRewards",
+        "Got rewards",
+        "ProjectionRewardChoice",
+        "ChooseReward",
+        "RewardSelection",
+        "Reward selection",
+        "VoidProjectionRewardChoice",
+    ];
+
     private static readonly JsonSerializerOptions _loadOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -106,6 +125,32 @@ public sealed class AppSettings
         {
             warnings.Add("ToggleHotkey is null or empty, falling back to 'Shift+F9'.");
             ToggleHotkey = "Shift+F9";
+        }
+
+        if (RewardTriggerPhrases is null || RewardTriggerPhrases.Count == 0)
+        {
+            warnings.Add("RewardTriggerPhrases is null or empty, falling back to 'GotRewards'.");
+            RewardTriggerPhrases = ["GotRewards"];
+        }
+        else
+        {
+            // Drop any null/blank entries so the watcher never scans for
+            // an empty phrase (which would match every line).
+            var cleaned = RewardTriggerPhrases
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .ToList();
+
+            if (cleaned.Count == 0)
+            {
+                warnings.Add("RewardTriggerPhrases contained only blank entries, falling back to 'GotRewards'.");
+                cleaned = ["GotRewards"];
+            }
+
+            if (cleaned.Count != RewardTriggerPhrases.Count)
+                warnings.Add("Removed blank entries from RewardTriggerPhrases.");
+
+            RewardTriggerPhrases = cleaned;
         }
 
         return warnings;
