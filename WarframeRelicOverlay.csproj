@@ -10,7 +10,12 @@
   <PropertyGroup>
     <ApplicationIcon />
     <StartupObject />
+    <!-- Per-Monitor v2 DPI awareness. Required so GetClientRect /
+         ClientToScreen / CopyFromScreen return true physical pixels
+         rather than a virtualized logical resolution. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+
 
   <!-- Prevent files outside src\ from being swept up by the root-level glob -->
   <ItemGroup>

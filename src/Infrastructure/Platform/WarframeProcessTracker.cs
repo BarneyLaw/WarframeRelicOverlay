@@ -2,6 +2,7 @@ namespace WarframeRelicOverlay.Infrastructure.Platform;
 
 using System.Diagnostics;
 using System.IO;
+using WarframeRelicOverlay.Infrastructure.Logging;
 
 /// <summary>
 /// Orchestrates Warframe process lifecycle detection by combining two
@@ -44,12 +45,22 @@ public class WarframeProcessTracker : IProcessTracker
     private readonly ProcessPolling _polling = new ProcessPolling("Warframe.x64");
     private FileTriggerWatcher? _logWatcher;
     private Timer? _pollTimer;
+    private readonly ILogger? _logger;
 
 
     // STATE TRACKING
     private readonly object _lock = new();
     private Process? _trackedProcess;
     private bool _disposed;
+
+    // Remembers whether the last MainWindowHandle read succeeded, so the
+    // 10 Hz position poll only logs handle-resolution transitions.
+    private bool _handleResolved;
+
+    public WarframeProcessTracker(ILogger? logger = null)
+    {
+        _logger = logger;
+    }
 
     // IProcessTracker implementation
 
@@ -84,13 +95,44 @@ public class WarframeProcessTracker : IProcessTracker
                 try
                 {
                     _trackedProcess.Refresh();
-                    return _trackedProcess.HasExited
-                        ? nint.Zero
-                        : _trackedProcess.MainWindowHandle;
+                    if (_trackedProcess.HasExited) return nint.Zero;
+
+                    nint handle = _trackedProcess.MainWindowHandle;
+                    string source = "Process.MainWindowHandle";
+
+                    // Process.MainWindowHandle is unreliable for game
+                    // windows (returns 0 / caches an empty value). Fall
+                    // back to enumerating the PID's top-level windows.
+                    if (handle == nint.Zero)
+                    {
+                        handle = Win32Interop.GetTopLevelWindowForProcess(_trackedProcess.Id);
+                        source = "EnumWindows fallback";
+                    }
+
+                    LogHandleTransition(handle, source);
+                    return handle;
                 }
-                catch { return nint.Zero; }
+                catch (Exception ex)
+                {
+                    _logger?.LogError("Failed to read MainWindowHandle.", ex);
+                    return nint.Zero;
+                }
             }
         }
+    }
+
+    // Logs only when the handle flips between resolved/unresolved, so the
+    // high-frequency position poll doesn't flood the log.
+    private void LogHandleTransition(nint handle, string source)
+    {
+        bool resolved = handle != nint.Zero;
+        if (resolved == _handleResolved) return;
+        _handleResolved = resolved;
+
+        if (resolved)
+            _logger?.LogInfo($"Window handle resolved via {source}: 0x{handle:X}.");
+        else
+            _logger?.LogWarning("Window handle is zero (no visible top-level window yet).");
     }
 
     /// <inheritdoc />
@@ -104,21 +146,24 @@ public class WarframeProcessTracker : IProcessTracker
     /// <inheritdoc />
     public void Start()
     {
+        _logger?.LogInfo("ProcessTracker.Start: wiring EE.log watcher + polling.");
+
         // 1. Wire up the polling component's events (used when the
         //    poller is the one that discovers a start/stop).
         _polling.ProcessStarted += OnPollingDetectedStart;
         _polling.ProcessStopped += OnPollingDetectedStop;
- 
+
         // 2. Try to create the EE.log watcher (primary channel).
         TryStartLogWatcher();
- 
+
         // 3. Immediate check: is Warframe already running?
         //    The poller handles this — if it finds a process it will
         //    raise ProcessStarted, which flows through our handler.
         _polling.Poll();
- 
+
         // 4. Start the safety-net timer.
         _pollTimer = new Timer(OnPollTick, null, PollInterval, PollInterval);
+        _logger?.LogInfo("ProcessTracker.Start: safety-net poll timer running.");
     }
 
     /// <inheritdoc />
@@ -191,6 +236,7 @@ public class WarframeProcessTracker : IProcessTracker
  
         if (TryAttachToProcess(out int pid))
         {
+            _logger?.LogInfo($"EE.log reported game start; attached to PID {pid}.");
             _polling.AttachSilently(pid); // Keep poller in sync.
             Started?.Invoke(pid);
         }
@@ -207,6 +253,7 @@ public class WarframeProcessTracker : IProcessTracker
         }
  
         _polling.DetachSilently();
+        _logger?.LogInfo($"EE.log reported game exit (PID {pid}).");
         Debug.WriteLine($"[ProcessTracker] EE.log reported game exit (PID {pid}).");
         Stopped?.Invoke(pid);
     }
@@ -246,6 +293,7 @@ public class WarframeProcessTracker : IProcessTracker
  
         if (TryAttachToProcess(out int attachedPid))
         {
+            _logger?.LogInfo($"Polling found Warframe; attached to PID {attachedPid}.");
             Debug.WriteLine($"[ProcessTracker] Polling found Warframe (PID {attachedPid}).");
             Started?.Invoke(attachedPid);
         }
@@ -262,6 +310,7 @@ public class WarframeProcessTracker : IProcessTracker
         }
  
         _polling.DetachSilently();
+        _logger?.LogInfo($"Polling detected game exit (PID {pid}).");
         Debug.WriteLine($"[ProcessTracker] Polling detected exit (PID {pid}).");
         Stopped?.Invoke(pid);
     }
@@ -346,6 +395,7 @@ public class WarframeProcessTracker : IProcessTracker
         }
  
         _polling.DetachSilently();
+        _logger?.LogInfo($"Process.Exited fired (PID {pid}).");
         Debug.WriteLine($"[ProcessTracker] Process.Exited fired (PID {pid}).");
         Stopped?.Invoke(pid);
     }
@@ -361,6 +411,7 @@ public class WarframeProcessTracker : IProcessTracker
         try { _trackedProcess.Exited -= OnProcessExited; } catch { }
         try { _trackedProcess.Dispose(); } catch { }
         _trackedProcess = null;
+        _handleResolved = false; // re-attach should log handle resolution again
     }
  
     // ── Helpers ─────────────────────────────────────────────────────

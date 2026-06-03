@@ -3,12 +3,14 @@ namespace WarframeRelicOverlay;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using WarframeRelicOverlay.Core;
 using WarframeRelicOverlay.Domain.Matching;
 using WarframeRelicOverlay.Domain.Pricing;
+using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Market;
 using WarframeRelicOverlay.Infrastructure.OCR;
@@ -22,340 +24,277 @@ using WarframeRelicOverlay.OverlayApp.StateMachine;
 using WarframeRelicOverlay.Presentation;
 
 /// <summary>
-/// Application composition root.
+/// Application entry point.  Supports two launch modes:
 ///
-/// <para>
-/// Wires up the entire dependency graph using
-/// <see cref="Microsoft.Extensions.DependencyInjection"/>, then starts the
-/// Warframe process tracker and the overlay coordinator.  The overlay is
-/// hidden by default and only becomes visible when the state machine
-/// transitions into <see cref="OverlayState.Pricing"/> or
-/// <see cref="OverlayState.Displaying"/>, or when the user presses the
-/// configured global hotkey.
-/// </para>
+///   <b>Normal</b> (default) — builds the full DI container with
+///   real infrastructure (OCR, screen capture, market API) and starts
+///   the coordinator + process tracker.
 ///
-/// <para>
-/// The window <see cref="OverlayWindow"/> is itself click-through and
-/// transparent.  All long-lived disposables are tracked here and released
-/// in reverse order on shutdown.
-/// </para>
+///   <b>Debug</b> (<c>--debug</c> flag or <c>DebugMode = true</c>
+///   in settings) — skips all real infrastructure, attaches a
+///   <see cref="DebugSimulator"/> that lets you trigger fake reward
+///   cycles with F5/F6 to test the overlay visuals.
 /// </summary>
 public partial class App : Application
 {
-    // ── Configuration ───────────────────────────────────────────────
-
-    private const string SettingsFileName = "data/settings.json";
-    private const string ItemsFileName = "data/items.json";
-    private const string TessDataFolder = "tessdata";
-    private const string MarketBaseUrl = "https://api.warframe.market/v2/";
-    private const string UserAgent = "WarframeRelicOverlay/1.0";
-
-    // ── State ───────────────────────────────────────────────────────
-
-    private ServiceProvider? _services;
+    private ServiceProvider? _serviceProvider;
     private OverlayCoordinator? _coordinator;
-    private OverlayWindow? _overlayWindow;
-    private HotkeyManager? _hotkeyManager;
+    private OverlayViewModel? _viewModel;
+    private IProcessTracker? _processTracker;
     private ILogger? _logger;
 
-    // ── Lifecycle ───────────────────────────────────────────────────
-
-    /// <summary>
-    /// Builds the dependency graph and starts the overlay engine.
-    /// Any failure here is logged, surfaced as a single error dialog,
-    /// and causes the process to exit with a non-zero exit code.
-    /// </summary>
-    protected override void OnStartup(StartupEventArgs e)
+    private void OnStartup(object sender, StartupEventArgs e)
     {
-        base.OnStartup(e);
-
-        // No automatic shutdown when a window closes — we only shut
-        // down when the coordinator says so or the user kills the
-        // process from the tray / task manager.  Each window manages
-        // its own visibility.
-        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        // Build the logger first thing so every step below is captured,
+        // even if startup throws. Constructed explicitly (not via DI) so
+        // the log file is guaranteed to exist from boot — a lazily
+        // resolved singleton might never be instantiated.
+        var logger = new FileLogger();
+        _logger = logger;
+        logger.LogInfo("==================== App starting ====================");
+        logger.LogInfo($"Log file: {logger.LogFilePath}");
 
         try
         {
-            BuildAndStart();
+            // Belt-and-suspenders: the app.manifest already declares
+            // PerMonitorV2, but if it was stripped (e.g. some single-file
+            // publish configs) this ensures we still get true physical
+            // pixels from the Win32 geometry/capture APIs. Must run before
+            // any HWND is created.
+            Infrastructure.Platform.Win32Interop.TryEnablePerMonitorV2();
+            logger.LogInfo("Per-Monitor-V2 DPI awareness requested.");
+
+            bool debugMode = e.Args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
+
+            // ── Load settings ───────────────────────────────────────────
+            string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
+            string settingsPath = Path.Combine(dataDir, "settings.json");
+            var settings = AppSettings.Load(settingsPath);
+            logger.LogInfo(
+                $"Settings loaded from '{settingsPath}': " +
+                $"DetectionMode={settings.DetectionMode}, DebugMode={settings.DebugMode}.");
+
+            debugMode = debugMode || settings.DebugMode;
+            logger.LogInfo($"Effective launch mode: {(debugMode ? "DEBUG" : "NORMAL")}.");
+
+            if (debugMode)
+                StartDebugMode(settings, logger);
+            else
+                StartNormalMode(settings, logger);
+
+            logger.LogInfo("Startup complete.");
         }
         catch (Exception ex)
         {
-            _logger?.LogError("Startup failed.", ex);
-            Debug.WriteLine($"[App] Startup failed: {ex}");
-
-            MessageBox.Show(
-                $"Warframe Relic Overlay failed to start:\n\n{ex.Message}",
-                "Warframe Relic Overlay",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-
-            DisposeServices();
-            Shutdown(exitCode: 1);
+            logger.LogError("Fatal error during startup.", ex);
+            throw;
         }
     }
 
-    /// <summary>
-    /// Releases every long-lived resource registered with the DI
-    /// container, in reverse order, on application exit.
-    /// </summary>
-    protected override void OnExit(ExitEventArgs e)
+    // ── Debug mode ──────────────────────────────────────────────────
+    // Only needs the state machine, view model, and simulator.
+    // No OCR, no screen capture, no market API, no Tesseract.
+
+    private void StartDebugMode(AppSettings settings, ILogger logger)
     {
-        DisposeServices();
-        base.OnExit(e);
+        logger.LogInfo("Starting DEBUG mode (no real OCR / capture / market).");
+
+        var services = new ServiceCollection();
+        services.AddSingleton(settings);
+        services.AddSingleton<ILogger>(logger);
+        services.AddSingleton<OverlayStateMachine>();
+        services.AddSingleton<OverlayViewModel>(sp =>
+        {
+            var sm = sp.GetRequiredService<OverlayStateMachine>();
+            // OverlayViewModel needs IWindowTracker and IProcessTracker
+            // but in debug mode they're never called (position tracking
+            // is replaced by ForceWindowGeometry).  Register stubs.
+            return new OverlayViewModel(sm, NullWindowTracker.Instance, NullProcessTracker.Instance, logger);
+        });
+
+        _serviceProvider = services.BuildServiceProvider();
+
+        var stateMachine = _serviceProvider.GetRequiredService<OverlayStateMachine>();
+        _viewModel = _serviceProvider.GetRequiredService<OverlayViewModel>();
+
+        var overlayWindow = new OverlayWindow(logger) { DataContext = _viewModel };
+        _viewModel.PhysicalBoundsChanged += overlayWindow.SetPhysicalBounds;
+        MainWindow = overlayWindow;
+        overlayWindow.Show();
+
+        // Attach the simulator — it drives the state machine via
+        // keyboard shortcuts and fakes pipeline results.
+        var simulator = new DebugSimulator(stateMachine, _viewModel);
+        simulator.Attach(overlayWindow);
+
+        Debug.WriteLine("[App] Debug mode started. F5 = rewards, F6 = exit, Esc = quit.");
     }
 
-    // ── Composition ─────────────────────────────────────────────────
+    // ── Normal mode ─────────────────────────────────────────────────
+    // Full DI container with all real services.
 
-    /// <summary>
-    /// Constructs the service collection, builds the provider, and
-    /// kicks off the runtime components in the correct order.
-    /// </summary>
-    private void BuildAndStart()
+    private void StartNormalMode(AppSettings settings, ILogger logger)
     {
-        AppSettings settings = LoadSettings();
+        logger.LogInfo("Starting NORMAL mode.");
+
+        string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
+        string itemsPath = Path.Combine(dataDir, "items.json");
+        string tessDataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
 
         var services = new ServiceCollection();
 
-        // Logger first so everything else can use it.
-        services.AddSingleton<ILogger>(_ => new FileLogger());
+        // Settings
         services.AddSingleton(settings);
 
-        // Reward pool — graceful empty-pool fallback handled by the
-        // repository itself (logs a warning if items.json is missing).
-        services.AddSingleton<IRewardRepository>(_ =>
-            new JsonRewardRepository(ItemsFileName));
-        services.AddSingleton<IRewardMatcher, FuzzyRewardMatcher>();
+        // Logging — register the instance created at boot so every
+        // component shares the same log file.
+        services.AddSingleton<ILogger>(logger);
 
-        // Platform — process and window tracking.
+        // Infrastructure: platform
         services.AddSingleton<IProcessTracker, WarframeProcessTracker>();
         services.AddSingleton<IWindowTracker, WarframeWindowTracker>();
-        services.AddSingleton<IScreenCapturer, GdiScreenCapturer>();
 
-        // OCR engine pool.
-        services.AddSingleton(sp => new TesseractOcrEngine(TessDataFolder));
-        services.AddSingleton<IOcrEngine>(sp => sp.GetRequiredService<TesseractOcrEngine>());
-
-        // Market client + caching price provider.
-        services.AddSingleton(_ => CreateHttpClient());
-        services.AddSingleton<IWarframeMarketAPI>(sp =>
-            new WarframeMarketClient(sp.GetRequiredService<HttpClient>()));
-        services.AddSingleton(sp => new RewardPriceCache(
-            sp.GetRequiredService<IWarframeMarketAPI>(),
-            TimeSpan.FromMinutes(settings.PriceCacheTtlMinutes)));
-        services.AddSingleton<IPriceProvider>(sp =>
-            sp.GetRequiredService<RewardPriceCache>());
-
-        // Pipeline.
-        services.AddSingleton<IRewardLayoutDetector, IntensityProfileDetector>();
-        services.AddSingleton<IRewardPipeline, RewardPricingPipeline>();
-
-        // Detection — pick a screen detector based on AppSettings.DetectionMode
-        // and adapt it to the IRewardDetector interface the coordinator uses.
-        services.AddSingleton<IRewardScreenDetector>(sp =>
-            CreateScreenDetector(sp, settings));
-        services.AddSingleton<IRewardDetector>(sp =>
-            new RewardScreenDetectorAdapter(
-                sp.GetRequiredService<IRewardScreenDetector>()));
-
-        // State machine.
-        services.AddSingleton<OverlayStateMachine>();
-
-        // Presentation — the WPF window and the IOverlayOutput that
-        // pushes pipeline results into it.
-        services.AddSingleton<OverlayWindow>();
-        services.AddSingleton<IOverlayOutput>(sp =>
-            new WpfOverlayOutput(
-                sp.GetRequiredService<OverlayWindow>(),
-                sp.GetRequiredService<IWindowTracker>(),
-                sp.GetRequiredService<IProcessTracker>(),
-                sp.GetRequiredService<OverlayStateMachine>(),
-                sp.GetRequiredService<AppSettings>(),
+        // Infrastructure: reward run history (JSON data file written on screen exit)
+        services.AddSingleton<IRewardHistoryRecorder>(
+            sp => new JsonRewardHistoryRecorder(
+                Path.Combine(dataDir, "reward-history.json"),
                 sp.GetRequiredService<ILogger>()));
 
-        // Top-level coordinator.
+        // Infrastructure: focus monitoring (alt-tab → hide overlay / idle)
+        // services.AddSingleton<FocusWatcher>();
+
+        // Infrastructure: screen capture
+        services.AddSingleton<IScreenCapturer, GdiScreenCapturer>();
+
+        // Infrastructure: OCR (pooled Tesseract engines)
+        services.AddSingleton<IOcrEngine>(
+            _ => new TesseractOcrEngine(tessDataPath, poolSize: 4));
+
+        // Infrastructure: market API
+        services.AddSingleton(_ =>
+        {
+            var http = new HttpClient
+            {
+                BaseAddress = new Uri("https://api.warframe.market/v2/"),
+                Timeout = TimeSpan.FromSeconds(10),
+            };
+
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WarframeRelicOverlay/1.0");
+            http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("Platform", "pc");
+            http.DefaultRequestHeaders.TryAddWithoutValidation("Language", "en");
+
+            return http;
+        });
+        services.AddSingleton<IWarframeMarketAPI>(
+            sp => new WarframeMarketClient(
+                sp.GetRequiredService<HttpClient>(),
+                sp.GetRequiredService<ILogger>()));
+
+        // Domain: reward data
+        services.AddSingleton<IRewardRepository>(
+            _ => new JsonRewardRepository(itemsPath));
+
+        // Domain: matching
+        services.AddSingleton<IRewardMatcher, FuzzyRewardMatcher>();
+
+        // Domain: pricing (cached)
+        services.AddSingleton<IPriceProvider>(sp =>
+            new RewardPriceCache(
+                sp.GetRequiredService<IWarframeMarketAPI>(),
+                TimeSpan.FromMinutes(settings.PriceCacheTtlMinutes),
+                sp.GetRequiredService<ILogger>()));
+
+        // Application: layout detection
+        services.AddSingleton<IRewardLayoutDetector, WarmTextRowDetector>();
+
+        // Application: reward screen detection (mode-dependent)
+        services.AddSingleton<IRewardScreenDetector>(sp => settings.DetectionMode switch
+        {
+            "OCR" => new OcrFallbackDetector(
+                        sp.GetRequiredService<IScreenCapturer>(),
+                        sp.GetRequiredService<IOcrEngine>(),
+                        sp.GetRequiredService<IProcessTracker>(),
+                        sp.GetRequiredService<IWindowTracker>(),
+                        settings),
+            _ => new LogFileDetector(settings),
+        });
+
+        // Application: adapter from IRewardScreenDetector → IRewardDetector
+        services.AddSingleton<IRewardDetector>(sp =>
+            new RewardDetectorAdapter(
+                sp.GetRequiredService<IRewardScreenDetector>()));
+
+        // Application: pipeline
+        services.AddSingleton<IRewardPipeline, RewardPricingPipeline>();
+
+        // Application: state machine
+        services.AddSingleton<OverlayStateMachine>();
+
+        // Presentation: ViewModel (implements IOverlayOutput)
+        services.AddSingleton<OverlayViewModel>();
+        services.AddSingleton<IOverlayOutput>(sp =>
+            sp.GetRequiredService<OverlayViewModel>());
+
+        // Application: coordinator
         services.AddSingleton<OverlayCoordinator>();
 
-        _services = services.BuildServiceProvider();
+        _serviceProvider = services.BuildServiceProvider();
+        logger.LogInfo("DI container built.");
 
-        _logger = _services.GetRequiredService<ILogger>();
-        _logger.LogOperationStart("Application startup");
+        _viewModel = _serviceProvider.GetRequiredService<OverlayViewModel>();
+        _coordinator = _serviceProvider.GetRequiredService<OverlayCoordinator>();
 
-        // Touch the overlay window early so it is created on the UI
-        // thread and gets wired into the WpfOverlayOutput before any
-        // pipeline result arrives.
-        _overlayWindow = _services.GetRequiredService<OverlayWindow>();
-        _overlayWindow.Show();
-        _ = _services.GetRequiredService<IOverlayOutput>();
+        var overlayWindow = new OverlayWindow(logger) { DataContext = _viewModel };
+        _viewModel.PhysicalBoundsChanged += overlayWindow.SetPhysicalBounds;
+        MainWindow = overlayWindow;
+        overlayWindow.Show();
+        logger.LogInfo("Overlay window shown.");
 
-        // Build the coordinator and start everything.  Order matters:
-        // OverlayCoordinator.Start subscribes to the process tracker's
-        // Started event before we kick the tracker into action.  Without
-        // this ordering, IProcessTracker.Start fires Started(pid)
-        // synchronously (via its initial poll) when Warframe is already
-        // running, the coordinator hasn't subscribed yet, and the
-        // WarframeStarted trigger never reaches the state machine.
-        _coordinator = _services.GetRequiredService<OverlayCoordinator>();
-
-        // Detector self-check — written before Start() so it lands
-        // even if the detector throws during start-up.
-        var detector = _services.GetRequiredService<IRewardScreenDetector>();
-        LogDetectorSelfCheck(_logger, detector);
-
+        // Start services
+        _processTracker = _serviceProvider.GetRequiredService<IProcessTracker>();
+        _processTracker.Start();
+        logger.LogInfo("Process tracker started.");
+        _viewModel.StartPositionTracking();
+        logger.LogInfo("Position tracking started.");
         _coordinator.Start();
-
-        var processTracker = _services.GetRequiredService<IProcessTracker>();
-        processTracker.Start();
-
-        // Hotkey toggle for force-show.
-        _hotkeyManager = new HotkeyManager(
-            _overlayWindow,
-            settings.ToggleHotkey,
-            OnHotkeyPressed,
-            _logger);
-        _hotkeyManager.TryRegister();
-
-        _logger.LogOperationEnd("Application startup", success: true,
-            details: $"DetectionMode={settings.DetectionMode}");
+        logger.LogInfo("Coordinator started. Normal mode ready.");
     }
 
-    /// <summary>
-    /// Loads <see cref="AppSettings"/> from <c>data/settings.json</c>,
-    /// returning the defaults if the file is missing, unreadable, or
-    /// corrupt.  Validation warnings are swallowed by
-    /// <see cref="AppSettings.Load"/>; we log them via <see cref="Debug"/>
-    /// because the file logger has not been constructed yet.
-    /// </summary>
-    private static AppSettings LoadSettings()
+    private void OnExit(object sender, ExitEventArgs e)
     {
-        try
-        {
-            return AppSettings.Load(SettingsFileName);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[App] AppSettings.Load failed: {ex.Message}. Using defaults.");
-            return new AppSettings();
-        }
+        _logger?.LogInfo($"Application exiting (code {e.ApplicationExitCode}).");
+
+        _viewModel?.StopPositionTracking();
+        _coordinator?.Dispose();
+
+        if (_serviceProvider is IDisposable disposable)
+            disposable.Dispose();
+
+        _logger?.LogInfo("==================== App stopped ====================");
     }
+}
 
-    /// <summary>
-    /// Constructs the shared <see cref="HttpClient"/> used by the
-    /// Warframe Market client.  The base address, timeout, and required
-    /// headers are configured here exactly once for the process lifetime.
-    /// </summary>
-    private static HttpClient CreateHttpClient()
-    {
-        var http = new HttpClient
-        {
-            BaseAddress = new Uri(MarketBaseUrl),
-            Timeout = TimeSpan.FromSeconds(5),
-        };
+// ── Null stubs for debug mode ───────────────────────────────────────
+// These satisfy the OverlayViewModel constructor without pulling in
+// real Win32 infrastructure.
 
-        http.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-        http.DefaultRequestHeaders.Add("Accept", "application/json");
-        http.DefaultRequestHeaders.Add("Platform", "pc");
-        http.DefaultRequestHeaders.Add("Language", "en");
+file sealed class NullProcessTracker : IProcessTracker
+{
+    public static readonly NullProcessTracker Instance = new();
+    public event Action<int>? Started { add { } remove { } }
+    public event Action<int>? Stopped { add { } remove { } }
+    public nint MainWindowHandle => nint.Zero;
+    public int? ProcessId => null;
+    public bool IsRunning => false;
+    public void Start() { }
+    public void Dispose() { }
+}
 
-        return http;
-    }
-
-    /// <summary>
-    /// Selects and constructs the screen detector that matches
-    /// <see cref="AppSettings.DetectionMode"/>.  Unknown values and
-    /// "Manual" fall back to <see cref="LogFileDetector"/> with a
-    /// warning so the app stays useful even with a stale settings file.
-    /// </summary>
-    private static IRewardScreenDetector CreateScreenDetector(
-        IServiceProvider sp, AppSettings settings)
-    {
-        var logger = sp.GetRequiredService<ILogger>();
-
-        switch (settings.DetectionMode)
-        {
-            case "EELog":
-                return new LogFileDetector(settings, logger);
-
-            case "OCR":
-                return new OcrFallbackDetector(
-                    sp.GetRequiredService<IScreenCapturer>(),
-                    sp.GetRequiredService<IOcrEngine>(),
-                    sp.GetRequiredService<IProcessTracker>(),
-                    sp.GetRequiredService<IWindowTracker>(),
-                    settings);
-
-            default:
-                logger.LogWarning(
-                    $"DetectionMode '{settings.DetectionMode}' is not supported in this build. " +
-                    "Falling back to EELog.");
-                return new LogFileDetector(settings, logger);
-        }
-    }
-
-    /// <summary>
-    /// Writes a startup self-check line for the active reward-screen
-    /// detector.  For <see cref="LogFileDetector"/> this includes the
-    /// resolved EE.log path, whether the file currently exists, and
-    /// its size — by far the most useful diagnostic for "the overlay
-    /// is running but never sees a reward screen".
-    /// </summary>
-    private static void LogDetectorSelfCheck(ILogger logger, IRewardScreenDetector detector)
-    {
-        if (detector is LogFileDetector logDetector)
-        {
-            string path = logDetector.LogPath;
-            bool exists = File.Exists(path);
-            long size = exists ? new FileInfo(path).Length : 0;
-
-            logger.LogInfo(
-                $"Reward-screen detector = LogFileDetector. " +
-                $"EE.log path: '{path}' (exists={exists}, sizeBytes={size}). " +
-                "Overlay will fire when the line 'GotRewards' is appended to this file. " +
-                "Open the file after a relic mission and search for 'GotRewards' to verify.");
-        }
-        else
-        {
-            logger.LogInfo(
-                $"Reward-screen detector = {detector.GetType().Name} " +
-                $"(IsDefinitive={detector.IsDefinitive}).");
-        }
-    }
-
-    // ── Hotkey ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Forwards a global hotkey press to the overlay output so the
-    /// user can force the overlay to appear (or hide it again) at any
-    /// time, regardless of the current pipeline state.
-    /// </summary>
-    private void OnHotkeyPressed()
-    {
-        if (_services is null) return;
-
-        var output = _services.GetService<IOverlayOutput>() as WpfOverlayOutput;
-        output?.ToggleManualShown();
-    }
-
-    // ── Disposal ────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Disposes the coordinator, the hotkey, and the service provider
-    /// in reverse-registration order.  Each step is wrapped in its own
-    /// try/catch so a misbehaving component cannot prevent the rest
-    /// from being released.
-    /// </summary>
-    private void DisposeServices()
-    {
-        try { _coordinator?.Dispose(); }
-        catch (Exception ex) { Debug.WriteLine($"[App] Coordinator dispose failed: {ex.Message}"); }
-        _coordinator = null;
-
-        try { _hotkeyManager?.Dispose(); }
-        catch (Exception ex) { Debug.WriteLine($"[App] Hotkey dispose failed: {ex.Message}"); }
-        _hotkeyManager = null;
-
-        try { _services?.Dispose(); }
-        catch (Exception ex) { Debug.WriteLine($"[App] Services dispose failed: {ex.Message}"); }
-        _services = null;
-    }
+file sealed class NullWindowTracker : IWindowTracker
+{
+    public static readonly NullWindowTracker Instance = new();
+    public WindowSnapshot? TryGetBounds(nint hwnd) => null;
+    public WindowSnapshot? TryGetMonitorBounds(nint hwnd) => null;
+    public bool IsForeground(nint hwnd) => false;
 }

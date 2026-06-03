@@ -23,7 +23,10 @@ public sealed class TesseractOcrEngine : IOcrEngine, IDisposable
         try
         {
             using var pix = BitmapToPix(image);
-            using var page = engine.Process(pix, PageSegMode.SingleLine);
+            // SingleBlock (not SingleLine): reward names wrap to two lines on
+            // narrow 4-card layouts, and the header is a single line — both are
+            // uniform text blocks. SingleLine crushes stacked lines into garbage.
+            using var page = engine.Process(pix, PageSegMode.SingleBlock);
             return page.GetText().Trim();
         }
         finally

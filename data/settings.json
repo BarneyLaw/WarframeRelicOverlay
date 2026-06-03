@@ -3,7 +3,7 @@
   "EeLogPathOverride": null,
   "DetectionIntervalMs": 250,
   "DetectionStreak": 2,
-  "StabilizationDelayMs": 250,
+  "StabilizationDelayMs": 0,
   "PriceCacheTtlMinutes": 5,
   "OverlayOpacity": 1.0,
   "PriceFontSizeOverride": 0,

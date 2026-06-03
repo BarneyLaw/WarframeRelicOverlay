@@ -1,7 +1,7 @@
 <Application x:Class="WarframeRelicOverlay.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:WarframeRelicOverlay">
-    <Application.Resources>
-    </Application.Resources>
+             Startup="OnStartup"
+             Exit="OnExit">
+    <Application.Resources />
 </Application>

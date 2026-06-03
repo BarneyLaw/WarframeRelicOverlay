@@ -164,7 +164,65 @@ public sealed class FileTriggerWatcherTests : IDisposable
         receivedEvent.Should().Be("RewardDetected");
     }
 
-    // ── Position tracking ───────────────────────────────────────────
+    // Trigger variants
+
+    [Fact]
+    public void OnTriggered_MatchesTriggerCaseInsensitively()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+
+        var customTriggers = new (string, string)[]
+        {
+            ("Got rewards", "RewardDetected"),
+        };
+
+        using var watcher = new FileTriggerWatcher(_logPath, customTriggers);
+        watcher.Start();
+
+        using var fired = new ManualResetEventSlim(false);
+        string? receivedEvent = null;
+        watcher.OnTriggered += name => { receivedEvent = name; fired.Set(); };
+
+        Append("12345.678 Sys [Info]: got rewards");
+
+        fired.Wait(TimeSpan.FromSeconds(3))
+             .Should().BeTrue("trigger matching should not depend on log casing");
+        receivedEvent.Should().Be("RewardDetected");
+    }
+
+    [Fact]
+    public void OnTriggered_FiresEventOnce_WhenAliasesMatchSameScan()
+    {
+        File.WriteAllText(_logPath, string.Empty);
+
+        var customTriggers = new (string, string)[]
+        {
+            ("Got rewards", "RewardDetected"),
+            ("GotRewards", "RewardDetected"),
+        };
+
+        using var watcher = new FileTriggerWatcher(_logPath, customTriggers);
+        watcher.Start();
+
+        int fireCount = 0;
+        using var fired = new ManualResetEventSlim(false);
+        watcher.OnTriggered += _ =>
+        {
+            Interlocked.Increment(ref fireCount);
+            fired.Set();
+        };
+
+        Append("12345.678 Sys [Info]: Got rewards / GotRewards");
+
+        fired.Wait(TimeSpan.FromSeconds(3))
+             .Should().BeTrue("one of the aliases should trigger");
+
+        Thread.Sleep(300);
+        fireCount.Should().Be(1,
+            "aliases that map to the same event should not double-start the pipeline");
+    }
+
+    // Position tracking
 
     [Fact]
     public void OnTriggered_DoesNotRefireOldContent_WhenFileExistedAtStart()

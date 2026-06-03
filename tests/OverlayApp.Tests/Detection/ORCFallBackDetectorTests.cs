@@ -331,6 +331,7 @@ public class OcrFallbackDetectorTests : IDisposable
         public void SetBounds(WindowSnapshot bounds) => _bounds = bounds;
 
         public WindowSnapshot? TryGetBounds(nint windowHandle) => _bounds;
+        public WindowSnapshot? TryGetMonitorBounds(nint windowHandle) => null;
         public bool IsForeground(nint windowHandle) => true;
     }
 

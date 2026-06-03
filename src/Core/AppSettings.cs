@@ -15,7 +15,7 @@ public sealed class AppSettings
     public string? EeLogPathOverride { get; set; } = null;
     public int DetectionIntervalMs { get; set; } = 250;
     public int DetectionStreak { get; set; } = 2;
-    public int StabilizationDelayMs { get; set; } = 250;
+    public int StabilizationDelayMs { get; set; } = 0;
     public int PriceCacheTtlMinutes { get; set; } = 5;
     public double OverlayOpacity { get; set; } = 1.0;
     public int PriceFontSizeOverride { get; set; } = 0;

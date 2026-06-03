@@ -3,6 +3,8 @@ namespace WarframeRelicOverlay.Core;
 using System.Diagnostics;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.OverlayApp.Detection;
+using WarframeRelicOverlay.Infrastructure.History;
+using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
@@ -36,6 +38,7 @@ public sealed class OverlayCoordinator : IDisposable
     private readonly IRewardPipeline _pipeline;
     private readonly IOverlayOutput _output;
     private readonly AppSettings _settings;
+    private readonly IRewardHistoryRecorder? _historyRecorder;
     private readonly ILogger? _logger;
 
     // Mutable states, guarded by a lock
@@ -43,8 +46,7 @@ public sealed class OverlayCoordinator : IDisposable
     private int _streakCount;
     private CancellationTokenSource? _pipelineCts;
     private Timer? _displayTimeoutTimer;
-    private Timer? _heartbeatTimer;
-    private DateTime _lastEventUtc = DateTime.UtcNow;
+    private RewardRunRecord? _pendingHistory;
     private bool _started;
     private bool _disposed;
 
@@ -72,7 +74,8 @@ public sealed class OverlayCoordinator : IDisposable
         IRewardPipeline pipeline,
         IOverlayOutput output,
         AppSettings settings,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        IRewardHistoryRecorder? historyRecorder = null)
     {
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _processTracker = processTracker ?? throw new ArgumentNullException(nameof(processTracker));
@@ -82,6 +85,7 @@ public sealed class OverlayCoordinator : IDisposable
         _output = output ?? throw new ArgumentNullException(nameof(output));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _logger = logger;
+        _historyRecorder = historyRecorder;
     }
 
     /// <summary>
@@ -124,7 +128,13 @@ public sealed class OverlayCoordinator : IDisposable
         // Start the detector to begin monitoring immediately
         _detector.Start();
 
-        _logger?.LogInfo("OverlayCoordinator started.");
+        // If Warframe was already running before we subscribed to Started,
+        // the event already fired and we missed it manually fire the trigger.
+        if (_processTracker.IsRunning)
+        {
+            Debug.WriteLine("[Coordinator] Warframe already running at startup — firing WarframeStarted.");
+            _stateMachine.Fire(OverlayTrigger.WarframeStarted);
+        }
     }
 
     /// <inheritdoc/>
@@ -174,7 +184,15 @@ public sealed class OverlayCoordinator : IDisposable
     {
         if (_disposed) return;
 
-        MarkEvent();
+        // Don't trigger pricing while the player is alt-tabbed away from the
+        // game. The reward log/OCR can still fire in the background, but the
+        // overlay is hidden and the user isn't looking at the reward screen.
+        if (!_windowTracker.IsForeground(_processTracker.MainWindowHandle))
+        {
+            Debug.WriteLine("[Coordinator] Reward detected but Warframe is not focused — ignoring.");
+            _logger?.LogInfo("[Coordinator] Reward detected while Warframe not focused; skipping pricing.");
+            return;
+        }
 
         bool isInstantConfirm =
             _settings.DetectionMode is "EELog" or "Manual";
@@ -253,10 +271,12 @@ public sealed class OverlayCoordinator : IDisposable
     {
         Debug.WriteLine(
             $"[Coordinator] {previous} → {current} (trigger: {trigger})");
-        _logger?.LogInfo(
-            $"State transition: {previous} -> {current} (trigger: {trigger})");
-        MarkEvent();
- 
+
+        // The reward screen has ended once we leave Displaying — persist the
+        // run that was just shown (whether it exited normally or the game closed).
+        if (previous == OverlayState.Displaying && current != OverlayState.Displaying)
+            FlushRewardHistory();
+
         switch (current)
         {
             case OverlayState.Tracking:
@@ -347,13 +367,22 @@ public sealed class OverlayCoordinator : IDisposable
         {
             // Get current window bounds.
             var windowHandle = _processTracker.MainWindowHandle;
+            _logger?.LogInfo($"[Coordinator] Pricing pipeline requested; window handle=0x{windowHandle:X}.");
             var window = _windowTracker.TryGetBounds(windowHandle);
             if (window is null || !window.Value.IsValid)
             {
                 Debug.WriteLine("[Coordinator] Window bounds unavailable — pricing failed.");
+                string reason = window is null
+                    ? "window tracker returned null"
+                    : $"invalid bounds {window.Value.ClientWidth}x{window.Value.ClientHeight} @ ({window.Value.ClientX},{window.Value.ClientY})";
+                _logger?.LogWarning($"[Coordinator] Pricing failed before pipeline: {reason}.");
                 _stateMachine.Fire(OverlayTrigger.PricingFailed);
                 return;
             }
+
+            _logger?.LogInfo(
+                $"[Coordinator] Pricing window bounds: physical={window.Value.ClientWidth}x{window.Value.ClientHeight} " +
+                $"@ ({window.Value.ClientX},{window.Value.ClientY}), dpi={window.Value.DpiScaleX:0.##}x{window.Value.DpiScaleY:0.##}.");
  
             // Stabilization delay — wait for the reward screen animation.
             if (_settings.StabilizationDelayMs > 0)
@@ -376,9 +405,12 @@ public sealed class OverlayCoordinator : IDisposable
                     $"[Coordinator] Pipeline produced {result.Cards.Count} card(s) " +
                     $"in {result.Elapsed.TotalMilliseconds:F0}ms.");
                 _logger?.LogInfo(
-                    $"Pipeline produced {result.Cards.Count} card(s) in " +
-                    $"{result.Elapsed.TotalMilliseconds:F0}ms (allMatched={result.AllMatched}).");
-
+                    $"[Coordinator] Pipeline succeeded: cards={result.Cards.Count}, " +
+                    $"matched={result.Cards.Count(c => c.MatchedItem is not null)}, " +
+                    $"priced={result.Cards.Count(c => c.PricePlatinum.HasValue)}, " +
+                    $"elapsed={result.Elapsed.TotalMilliseconds:F0} ms.");
+ 
+                StorePendingRewardHistory(result);
                 _output.ShowPrices(result);
                 _stateMachine.Fire(OverlayTrigger.PricingCompleted);
             }
@@ -386,15 +418,15 @@ public sealed class OverlayCoordinator : IDisposable
             {
                 Debug.WriteLine("[Coordinator] Pipeline detected no cards — pricing failed.");
                 _logger?.LogWarning(
-                    $"Pipeline detected no cards (elapsed " +
-                    $"{result.Elapsed.TotalMilliseconds:F0}ms) — pricing failed.");
+                    $"[Coordinator] Pricing failed after pipeline: no cards returned; " +
+                    $"elapsed={result.Elapsed.TotalMilliseconds:F0} ms.");
                 _stateMachine.Fire(OverlayTrigger.PricingFailed);
             }
         }
         catch (OperationCanceledException)
         {
             Debug.WriteLine("[Coordinator] Pipeline cancelled.");
-            _logger?.LogInfo("Pipeline cancelled.");
+            _logger?.LogWarning("[Coordinator] Pipeline cancelled.");
             // No trigger needed — the cancellation was caused by
             // WarframeStopped or Dispose, which handle their own
             // state transitions.
@@ -402,10 +434,57 @@ public sealed class OverlayCoordinator : IDisposable
         catch (Exception ex)
         {
             Debug.WriteLine($"[Coordinator] Pipeline error: {ex.Message}");
-            _logger?.LogError("Pipeline error.", ex);
+            _logger?.LogError("[Coordinator] Pipeline threw an unexpected exception.", ex);
             _stateMachine.Fire(OverlayTrigger.PricingFailed);
         }
 
+    }
+
+    // Reward history
+
+    /// <summary>
+    /// Captures the just-priced run (timestamped now, when the reward was
+    /// received) and holds it until the reward screen ends, at which point
+    /// <see cref="FlushRewardHistory"/> writes it to the data file.
+    /// </summary>
+    private void StorePendingRewardHistory(PipelineResult result)
+    {
+        if (_historyRecorder is null) return;
+
+        var record = new RewardRunRecord
+        {
+            Timestamp = DateTimeOffset.Now,
+            Items = result.Cards
+                .OrderBy(c => c.Index)
+                .Select(c => new RewardRunItem
+                {
+                    Name = c.MatchedItem?.CanonicalName,
+                    Price = c.PricePlatinum,
+                })
+                .ToList(),
+        };
+
+        lock (_lock) { _pendingHistory = record; }
+    }
+
+    /// <summary>
+    /// Writes the pending run to the reward-history file once the screen has
+    /// ended. Best-effort: the recorder swallows its own I/O errors, and the
+    /// write is offloaded so this state-machine callback stays fast.
+    /// </summary>
+    private void FlushRewardHistory()
+    {
+        RewardRunRecord? record;
+        lock (_lock)
+        {
+            record = _pendingHistory;
+            _pendingHistory = null;
+        }
+
+        if (record is null || _historyRecorder is null) return;
+
+        var recorder = _historyRecorder;
+        _ = Task.Run(() => recorder.Record(record));
     }
 
     // Display timeout

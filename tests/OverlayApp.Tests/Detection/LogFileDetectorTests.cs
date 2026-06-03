@@ -70,6 +70,31 @@ public class LogFileDetectorTests : IDisposable
             "RewardScreenDetected should fire when 'GotRewards' is appended.");
     }
 
+    [Theory]
+    [InlineData("VoidProjections: OpenVoidProjectionRewardScreenRMI")]
+    [InlineData("VoidProjections: OpenVoidProjectionRewardScreen - PostMigration: 0")]
+    [InlineData("Created /Lotus/Interface/ProjectionRewardChoice.swf")]
+    [InlineData("ProjectionRewardChoice.lua: Relic rewards initialized")]
+    [InlineData("ProjectionRewardChoice.lua: Got rewards")]
+    [InlineData("Got rewards")]
+    [InlineData("got rewards")]
+    [InlineData("GotRewards")]
+    public void DetectsKnownRewardTriggerVariants(string triggerText)
+    {
+        File.WriteAllText(_logPath, "");
+
+        using var detector = new LogFileDetector(_logPath);
+        using var detected = new ManualResetEventSlim(false);
+
+        detector.RewardScreenDetected += () => detected.Set();
+        detector.Start();
+
+        File.AppendAllText(_logPath, $"12345.678 Sys [Info]: {triggerText}\n");
+
+        Assert.True(detected.Wait(TimeSpan.FromSeconds(2)),
+            $"RewardScreenDetected should fire when '{triggerText}' is appended.");
+    }
+
     [Fact]
     public void IgnoresUnrelatedContent()
     {
