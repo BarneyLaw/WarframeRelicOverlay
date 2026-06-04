@@ -10,19 +10,17 @@ using WarframeRelicOverlay.OverlayApp.StateMachine;
 ///
 /// Truth table (R19.6):
 ///
-///   snapshotValid | foreground | manualShown | state                | visible
-///   ──────────────┼────────────┼─────────────┼──────────────────────┼────────
-///        false    |     *      |      *      |          *           |  false
-///          *      |   false    |      *      |          *           |  false
-///        true     |   true     |    true     |          *           |  true
-///        true     |   true     |   false     | Pricing | Displaying |  true
-///        true     |   true     |   false     | Idle | Tracking |    |  false
-///                 |            |             | Detecting            |
+///   snapshotValid | manualShown | state                | visible
+///   ──────────────┼─────────────┼──────────────────────┼────────
+///        false    |      *      |          *           |  false
+///        true     |    true     |          *           |  true
+///        true     |   false     | Pricing | Displaying |  true
+///        true     |   false     | Idle | Tracking |    |  false
+///                 |             | Detecting            |
 ///
 /// In words: the overlay is visible only when the captured window snapshot
-/// is valid AND Warframe is the foreground process AND either the user has
-/// manually toggled it on (hotkey) OR the state machine is actively
-/// pricing or displaying results.
+/// is valid AND either the user has manually toggled it on (hotkey) OR the
+/// state machine is actively pricing or displaying results.
 /// </summary>
 public static class VisibilityDecision
 {
@@ -58,7 +56,6 @@ public static class VisibilityDecision
         OverlayState state, bool foreground, bool manualShown, bool snapshotValid)
     {
         return snapshotValid
-            && foreground
             && (manualShown || state is OverlayState.Pricing or OverlayState.Displaying);
     }
 }

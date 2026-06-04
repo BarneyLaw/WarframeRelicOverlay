@@ -1,6 +1,8 @@
 <Window x:Class="WarframeRelicOverlay.Presentation.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WarframeRelicOverlay.Presentation"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="WarframeRelicOverlay"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -13,11 +15,58 @@
         Focusable="False"
         IsHitTestVisible="False"
         ShowActivated="False">
-    <Grid x:Name="RootGrid">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+
+        <Style x:Key="PriceLabelBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#D0181410" />
+            <Setter Property="BorderBrush" Value="#DDB08233" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="14,4,14,5" />
+            <Setter Property="Opacity" Value="0.96" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="Black" BlurRadius="7" ShadowDepth="1" Opacity="0.55" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PriceTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#F1DCA6" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid" Visibility="{Binding IsOverlayVisible, Converter={StaticResource BoolToVisibilityConverter}}">
         <!-- Absolute-positioned children are added at runtime.  The
              Canvas is sized to match the Warframe client area in DIPs;
              children are placed via Canvas.Left / Canvas.Top. -->
-        <Canvas x:Name="LabelCanvas" />
+        <Canvas x:Name="LabelCanvas">
+            <ItemsControl ItemsSource="{Binding PriceLabels}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Canvas />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemContainerStyle>
+                    <Style TargetType="ContentPresenter">
+                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                    </Style>
+                </ItemsControl.ItemContainerStyle>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource PriceLabelBorderStyle}">
+                            <TextBlock Text="{Binding Text}" Style="{StaticResource PriceTextStyle}" />
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Canvas>
 
         <!-- Overlay active badge -->
         <Border HorizontalAlignment="Right"
@@ -27,14 +76,15 @@
                 BorderBrush="#CC7AE082"
                 BorderThickness="1"
                 CornerRadius="12"
-                Padding="10,6">
+                Padding="10,6"
+                Visibility="{Binding IsStatusVisible, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="●"
                            FontSize="13"
                            Foreground="#7AE082"
                            Margin="0,0,6,0"
                            VerticalAlignment="Center" />
-                <TextBlock Text="Overlay On"
+                <TextBlock Text="{Binding StatusText}"
                            FontSize="11"
                            FontWeight="SemiBold"
                            Foreground="#E7F7E9"
@@ -43,9 +93,9 @@
         </Border>
 
         <!-- Loading spinner overlaid above the reward area. Hidden by
-             default; toggled by the WpfOverlayOutput. -->
+             default; toggled by the view model. -->
         <Grid x:Name="SpinnerHost"
-              Visibility="Collapsed"
+              Visibility="{Binding IsLoadingVisible, Converter={StaticResource BoolToVisibilityConverter}}"
               HorizontalAlignment="Center"
               VerticalAlignment="Center">
             <Border Background="#EB12161B"

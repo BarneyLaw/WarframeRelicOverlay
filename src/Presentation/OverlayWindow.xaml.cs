@@ -120,117 +120,38 @@ public partial class OverlayWindow : Window
     /// Repositions and resizes the overlay window so its client area
     /// covers Warframe's client area exactly, in WPF logical units.
     /// </summary>
-    /// <param name="window">
-    /// The most recent snapshot of Warframe's client-area geometry.
-    /// </param>
     public void ApplyWindowGeometry(WindowSnapshot window)
     {
         Left = window.LogicalX;
         Top = window.LogicalY;
         Width = window.LogicalWidth;
         Height = window.LogicalHeight;
-
-        LabelCanvas.Width = window.LogicalWidth;
-        LabelCanvas.Height = window.LogicalHeight;
     }
 
     /// <summary>
-    /// Removes every price label currently parented to
-    /// <see cref="LabelCanvas"/>.  Safe to call when no labels exist.
+    /// Enables or disables click-through by updating the window's extended style.
+    /// Used by the debug simulator to allow keyboard interaction while testing.
     /// </summary>
-    public void ClearLabels()
+    public void SetClickThrough(bool enabled)
     {
-        foreach (var label in _priceLabels)
-            LabelCanvas.Children.Remove(label);
-        _priceLabels.Clear();
-    }
+        var helper = new WindowInteropHelper(this);
+        nint hwnd = helper.Handle;
+        if (hwnd == nint.Zero) return;
 
-    /// <summary>
-    /// Replaces the current set of price labels with one new label per
-    /// supplied <see cref="PositionedLabel"/>.  Each label is a small
-    /// dark card with a gold border and large platinum text, identical
-    /// in style to common in-game price-check overlays.
-    /// </summary>
-    /// <param name="labels">
-    /// The pre-positioned labels to render.  Position values are in
-    /// DIPs relative to the canvas top-left.
-    /// </param>
-    /// <param name="opacity">
-    /// Overall opacity to apply (0.5 - 1.0).  Comes from
-    /// <see cref="Core.AppSettings.OverlayOpacity"/>.
-    /// </param>
-    /// <param name="fontSize">
-    /// Font size in DIPs for the price text.
-    /// </param>
-    public void RenderLabels(IReadOnlyList<PositionedLabel> labels, double opacity, double fontSize)
-    {
-        ClearLabels();
+        nint exStyle = Win32Interop.GetWindowLongPtr(hwnd, Win32Interop.GWL_EXSTYLE);
 
-        foreach (var positioned in labels)
+        if (enabled)
         {
-            UIElement element = BuildPriceCard(positioned, opacity, fontSize);
-
-            Canvas.SetLeft(element, positioned.LeftDip);
-            Canvas.SetTop(element, positioned.TopDip);
-
-            LabelCanvas.Children.Add(element);
-            _priceLabels.Add(element);
+            exStyle |= Win32Interop.WS_EX_TRANSPARENT;
+            exStyle |= Win32Interop.WS_EX_LAYERED;
+            exStyle |= Win32Interop.WS_EX_TOOLWINDOW;
         }
-    }
+        else
+        {
+            exStyle &= ~Win32Interop.WS_EX_TRANSPARENT;
+        }
 
-    /// <summary>
-    /// Shows the loading spinner anchored over the reward area
-    /// (vertically between 30% and 70% of the window height).
-    /// </summary>
-    public void ShowSpinner()
-    {
-        SpinnerHost.Margin = new Thickness(
-            left: 0,
-            top: ActualHeight * 0.30,
-            right: 0,
-            bottom: ActualHeight * 0.30);
-
-        SpinnerHost.Visibility = Visibility.Visible;
-    }
-
-    /// <summary>
-    /// Hides the loading spinner.  Idempotent.
-    /// </summary>
-    public void HideSpinner()
-    {
-        SpinnerHost.Visibility = Visibility.Collapsed;
-    }
-
-    // ── Physical bounds (driven by OverlayViewModel) ────────────────
-
-    /// <summary>
-    /// Positions and sizes the overlay window using physical screen
-    /// pixels.  Called by <see cref="OverlayViewModel"/> via the
-    /// <c>PhysicalBoundsChanged</c> event.  Converts from physical
-    /// pixels to WPF logical units (DIPs) using the window's current
-    /// DPI transform so the overlay aligns precisely with Warframe's
-    /// client area regardless of display scaling.
-    /// </summary>
-    /// <param name="x">Physical-pixel left edge of the Warframe client area.</param>
-    /// <param name="y">Physical-pixel top edge of the Warframe client area.</param>
-    /// <param name="width">Physical-pixel width of the Warframe client area.</param>
-    /// <param name="height">Physical-pixel height of the Warframe client area.</param>
-    public void SetPhysicalBounds(int x, int y, int width, int height)
-    {
-        if (width <= 0 || height <= 0) return;
-
-        // Get the DPI scale for this window so we can convert physical → logical.
-        var source = PresentationSource.FromVisual(this);
-        double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
-        double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
-
-        Left = x * dpiX;
-        Top = y * dpiY;
-        Width = width * dpiX;
-        Height = height * dpiY;
-
-        LabelCanvas.Width = width * dpiX;
-        LabelCanvas.Height = height * dpiY;
+        Win32Interop.SetWindowLongPtr(hwnd, Win32Interop.GWL_EXSTYLE, exStyle);
     }
 
     // ── Card construction ───────────────────────────────────────────
@@ -369,6 +290,69 @@ public partial class OverlayWindow : Window
         number = head;
         suffix = "p";
         return true;
+    }
+
+    /// <summary>
+    /// Compatibility shim for the older WpfOverlayOutput path.
+    /// The live overlay is now rendered through the bound view model,
+    /// so this method intentionally does nothing.
+    /// </summary>
+    public void ClearLabels()
+    {
+    }
+
+    /// <summary>
+    /// Compatibility shim for the older WpfOverlayOutput path.
+    /// The live overlay is now rendered through the bound view model,
+    /// so this method intentionally does nothing.
+    /// </summary>
+    public void RenderLabels(IReadOnlyList<PositionedLabel> labels, double opacity, double fontSize)
+    {
+    }
+
+    /// <summary>
+    /// Compatibility shim for the older WpfOverlayOutput path.
+    /// The live overlay is now rendered through the bound view model,
+    /// so this method intentionally does nothing.
+    /// </summary>
+    public void ShowSpinner()
+    {
+    }
+
+    /// <summary>
+    /// Compatibility shim for the older WpfOverlayOutput path.
+    /// The live overlay is now rendered through the bound view model,
+    /// so this method intentionally does nothing.
+    /// </summary>
+    public void HideSpinner()
+    {
+    }
+
+    /// <summary>
+    /// Positions and sizes the overlay window using physical screen
+    /// pixels.  Called by <see cref="OverlayViewModel"/> via the
+    /// <c>PhysicalBoundsChanged</c> event.  Converts from physical
+    /// pixels to WPF logical units (DIPs) using the window's current
+    /// DPI transform so the overlay aligns precisely with Warframe's
+    /// client area regardless of display scaling.
+    /// </summary>
+    /// <param name="x">Physical-pixel left edge of the Warframe client area.</param>
+    /// <param name="y">Physical-pixel top edge of the Warframe client area.</param>
+    /// <param name="width">Physical-pixel width of the Warframe client area.</param>
+    /// <param name="height">Physical-pixel height of the Warframe client area.</param>
+    public void SetPhysicalBounds(int x, int y, int width, int height)
+    {
+        if (width <= 0 || height <= 0) return;
+
+        // Get the DPI scale for this window so we can convert physical → logical.
+        var source = PresentationSource.FromVisual(this);
+        double dpiX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+        double dpiY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+
+        Left = x * dpiX;
+        Top = y * dpiY;
+        Width = width * dpiX;
+        Height = height * dpiY;
     }
 }
 

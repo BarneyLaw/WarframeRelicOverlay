@@ -207,14 +207,14 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         });
     }
 
-    // The overlay is only shown when the state machine wants it AND Warframe
-    // is the focused window — so alt-tabbing away hides it. Both inputs are
-    // combined here; callers set one flag then re-evaluate.
+    // The overlay is only shown when the state machine wants it. We keep
+    // tracking foreground for logging/diagnostics, but we do not hide the
+    // reward overlay just because focus blipped during the display phase.
     private bool _overlayStateActive;
     private bool _gameHasFocus = true;
 
     private void ApplyOverlayVisibility() =>
-        IsOverlayVisible = _overlayStateActive && _gameHasFocus;
+        IsOverlayVisible = _overlayStateActive;
 
     private void SetGameFocus(bool focused)
     {

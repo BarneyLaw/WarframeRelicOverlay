@@ -361,27 +361,20 @@ public sealed class FileTriggerWatcher : IDisposable
                 string newContent = reader.ReadToEnd();
                 _lastPosition = stream.Position;
 
-<<<<<<< HEAD
                 long bytesRead = _lastPosition - startPosition;
                 _logger?.LogInfo(
                     $"FileTriggerWatcher read {bytesRead} new bytes from " +
                     $"'{_filePath}' (position {startPosition} -> {_lastPosition}).");
 
+                var triggeredEvents = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var (phrase, eventName) in _triggers)
                 {
-                    bool found = newContent.Contains(phrase, StringComparison.Ordinal);
+                    bool found = newContent.Contains(phrase, StringComparison.OrdinalIgnoreCase);
                     _logger?.LogInfo(
                         $"FileTriggerWatcher scan: phrase='{phrase}' " +
                         $"event='{eventName}' found={found}");
 
-                    if (found)
-=======
-                var triggeredEvents = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var (phrase, eventName) in _triggers)
-                {
-                    if (newContent.Contains(phrase, StringComparison.OrdinalIgnoreCase) &&
-                        triggeredEvents.Add(eventName))
->>>>>>> main
+                    if (found && triggeredEvents.Add(eventName))
                     {
                         OnTriggered?.Invoke(eventName);
                     }
@@ -396,7 +389,6 @@ public sealed class FileTriggerWatcher : IDisposable
             }
         }
     }
-<<<<<<< HEAD
 
     // ── Helpers ──────────────────────────────────────────────────
 
@@ -405,6 +397,4 @@ public sealed class FileTriggerWatcher : IDisposable
         foreach (var (phrase, eventName) in _triggers)
             yield return $"{eventName}<-'{phrase}'";
     }
-=======
->>>>>>> main
 }

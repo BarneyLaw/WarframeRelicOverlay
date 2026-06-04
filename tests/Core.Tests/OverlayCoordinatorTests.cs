@@ -275,6 +275,7 @@ public class OverlayCoordinatorTests : IDisposable
             _pipeline,
             _output,
             settings ?? MakeSettings(),
+            logger: null,
             historyRecorder: historyRecorder);
     }
 
