@@ -47,11 +47,14 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
 
     /// <summary>
     /// Default vertical gap (DIPs) between the bottom of a reward card
-    /// and the top of its price card.  Sized to clear Warframe's gold
-    /// border line which sits flush against the bottom of the detected
-    /// card text region.
+    /// (the gold border line detected by the layout detector) and the
+    /// top of the price card rendered by the overlay.  At 1080p the
+    /// in-game reward names sit at ~32% of window height and the
+    /// player-name labels sit at ~38%; leaving a 60 DIP gap puts the
+    /// price card below the player names and above the timer bar,
+    /// matching the position of common Warframe price-check overlays.
     /// </summary>
-    private const double LabelGapDip = 8.0;
+    private const double LabelGapDip = 60.0;
 
     /// <summary>
     /// Auto-sized font baseline.  At 1080 DIPs of window height the
@@ -355,9 +358,10 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
         // platinum prices are considered.
         int bestIndex = FindBestPricedCardIndex(result);
 
-        // Estimated label height (DIPs).  Single-line price card with
-        // the padding configured in OverlayWindow.BuildPriceCard.
-        double estimatedLabelHeightDip = fontSize * 1.4 + 12;
+        // Estimated label height (DIPs).  Three-line card (item name +
+        // price + detail row) with the padding configured in
+        // OverlayWindow.BuildPriceCard.
+        double estimatedLabelHeightDip = fontSize * 2.8 + 20;
 
         var positioned = new List<PositionedLabel>(result.Cards.Count);
 
@@ -404,6 +408,9 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
                 TopDip: topDip,
                 MaxWidthDip: maxWidthDip,
                 Text: card.DisplayText,
+                ItemName: card.MatchedItem?.CanonicalName,
+                BuyPrice: card.HighestBuyPrice,
+                SellerCount: card.SellerCount,
                 IsHighlighted: i == bestIndex));
         }
 

@@ -19,9 +19,16 @@ public sealed class AppSettings
     public int PriceCacheTtlMinutes { get; set; } = 5;
     public double OverlayOpacity { get; set; } = 1.0;
     public int PriceFontSizeOverride { get; set; } = 0;
-    public string ToggleHotkey { get; set; } = "Shift+F9";
+    public string HistoryHotkey { get; set; } = "Shift+Tab";
     public bool DebugMode { get; set; } = false;
     public bool SaveDebugImages { get; set; } = false;
+
+    /// <summary>
+    /// Background colour of the price card shown below each reward item,
+    /// as an ARGB hex string (e.g. <c>"#EE181410"</c>).  The first two hex
+    /// digits are the alpha channel (FF = fully opaque).
+    /// </summary>
+    public string CardBackgroundColor { get; set; } = "#EE181410";
 
     /// <summary>
     /// Phrases scanned (case-insensitively) in newly-appended EE.log
@@ -121,10 +128,16 @@ public sealed class AppSettings
             }
         }
 
-        if (string.IsNullOrEmpty(ToggleHotkey))
+        if (string.IsNullOrWhiteSpace(HistoryHotkey))
         {
-            warnings.Add("ToggleHotkey is null or empty, falling back to 'Shift+F9'.");
-            ToggleHotkey = "Shift+F9";
+            warnings.Add("HistoryHotkey is null or empty, falling back to 'Shift+Tab'.");
+            HistoryHotkey = "Shift+Tab";
+        }
+
+        if (string.IsNullOrWhiteSpace(CardBackgroundColor))
+        {
+            warnings.Add("CardBackgroundColor is null or empty, resetting to default.");
+            CardBackgroundColor = "#EE181410";
         }
 
         if (RewardTriggerPhrases is null || RewardTriggerPhrases.Count == 0)

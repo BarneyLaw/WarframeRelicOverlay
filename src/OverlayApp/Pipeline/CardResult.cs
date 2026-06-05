@@ -38,6 +38,20 @@ public sealed record CardResult
     public int? PricePlatinum { get; init; }
 
     /// <summary>
+    /// Highest buy offer in platinum from an in-game PC buyer, or
+    /// <c>null</c> if no buy orders exist.  Shown on the overlay card
+    /// so the player knows the instant-sell value.
+    /// </summary>
+    public int? HighestBuyPrice { get; init; }
+
+    /// <summary>
+    /// Number of in-game PC sellers at or near the lowest sell price.
+    /// Gives the player confidence that the displayed price is liquid.
+    /// Zero when no data is available.
+    /// </summary>
+    public int SellerCount { get; init; }
+
+    /// <summary>
     /// Raw text returned by the OCR engine for this card.
     /// Useful for the debug log tab and for diagnosing match failures.
     /// </summary>
@@ -51,12 +65,12 @@ public sealed record CardResult
 
     /// <summary>
     /// Display string for the overlay.  Returns the price in platinum,
-    /// "Untradeable" for forma-style items, or "?" if matching failed.
+    /// "N/A" for untradeable items (e.g. Forma), or "?" if matching failed.
     /// </summary>
     public string DisplayText => MatchedItem switch
     {
         null => "?",
-        { IsUntradeable: true } => "Untradeable",
+        { IsUntradeable: true } => "N/A",
         _ when PricePlatinum.HasValue => $"{PricePlatinum.Value}p",
         _ => "N/A",
     };

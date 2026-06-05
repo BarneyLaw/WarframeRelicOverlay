@@ -36,7 +36,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
     /// Screen-open phrases intentionally fire before reward cards are
     /// guaranteed visible; the pricing pipeline gates on card layout.
     /// </summary>
-    private static readonly (string Phrase, string EventName)[] RewardTriggers =
+    private static readonly (string Phrase, string EventName)[] _rewardTriggers =
     [
         ("VoidProjections: OpenVoidProjectionRewardScreen", RewardDetectedEvent),
         ("Created /Lotus/Interface/ProjectionRewardChoice.swf", RewardDetectedEvent),
@@ -51,7 +51,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
     /// <see cref="FileTriggerWatcher"/>.  Kept short because each
     /// poll only reads the delta — typically a few hundred bytes.
     /// </summary>
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan _pollInterval = TimeSpan.FromMilliseconds(200);
 
     // ── State ─────────────────────────────────────────────────────
 
@@ -138,7 +138,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
         try
         {
             _watcher = new FileTriggerWatcher(
-                _logPath, RewardTriggers, PollInterval, _logger);
+                _logPath, _rewardTriggers, _pollInterval, _logger);
             _watcher.OnTriggered += OnWatcherTriggered;
             _watcher.Start();
             _logger?.LogInfo("LogFileDetector started successfully.");

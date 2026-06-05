@@ -28,8 +28,6 @@ public sealed class WarframeMarketClient : IWarframeMarketAPI
 /// </code>
 /// </summary>
 
-/// </summary>
-
     public WarframeMarketClient(HttpClient http, ILogger? logger = null)
     {   
         // HttpClient is intended to be shared and reused, so we inject it via constructor
@@ -139,9 +137,64 @@ public sealed class WarframeMarketClient : IWarframeMarketAPI
         
     }
 
+    /// <summary>Returns elapsed milliseconds since the given UTC start time.</summary>
     private static double ElapsedMs(DateTime started) =>
         (DateTime.UtcNow - started).TotalMilliseconds;
 
+    /// <inheritdoc />
+    public async Task<MarketItemData?> GetMarketDataAsync(string slug, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
+
+        HttpResponseMessage response;
+        string relativeUrl = $"orders/item/{slug}/top";
+
+        try
+        {
+            response = await _http.GetAsync(relativeUrl, ct);
+        }
+        catch (TaskCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch { return null; }
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        try
+        {
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var result = JsonSerializer.Deserialize<TopOrdersResponse>(json);
+
+            var sellOrders = result?.Data?.Sell?
+                .Where(o => o.User?.Status == "ingame")
+                .Where(o => o.User?.Platform is null or "pc")
+                .OrderBy(o => o.Platinum)
+                .ToList() ?? [];
+
+            var buyOrders = result?.Data?.Buy?
+                .Where(o => o.User?.Status == "ingame")
+                .Where(o => o.User?.Platform is null or "pc")
+                .OrderByDescending(o => o.Platinum)
+                .ToList() ?? [];
+
+            int? lowestSell = sellOrders.Count > 0 ? sellOrders[0].Platinum : null;
+            int? highestBuy = buyOrders.Count > 0 ? buyOrders[0].Platinum : null;
+
+            return new MarketItemData(
+                LowestSellPrice: lowestSell,
+                HighestBuyPrice: highestBuy,
+                SellerCount: sellOrders.Count);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads up to 500 characters from the response body for diagnostic logging.
+    /// Returns "&lt;unreadable&gt;" when the body cannot be read.
+    /// </summary>
     private static async Task<string> ReadBodySnippetAsync(
         HttpResponseMessage response,
         CancellationToken ct)

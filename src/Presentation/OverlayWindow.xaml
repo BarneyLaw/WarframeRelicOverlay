@@ -18,6 +18,9 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
+        <!-- Inverse: true → Collapsed, false → Visible (for History tab hiding when Settings is active) -->
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+
         <Style x:Key="PriceLabelBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="#D0181410" />
             <Setter Property="BorderBrush" Value="#DDB08233" />
@@ -121,6 +124,188 @@
                                Margin="0,4,0,0" />
                 </StackPanel>
             </Border>
+        </Grid>
+        <!-- History / Settings panel — full-screen overlay. Toggled by
+             the history hotkey. When visible, the window becomes
+             interactive (click-through disabled). -->
+        <Grid Visibility="{Binding IsHistoryPanelVisible, Converter={StaticResource BoolToVisibilityConverter}}"
+              Background="#E6101418">
+
+            <!-- Tab bar -->
+            <Border VerticalAlignment="Top"
+                    Background="#181C22"
+                    BorderBrush="#33B08233"
+                    BorderThickness="0,0,0,1"
+                    Height="52">
+                <Grid>
+                    <!-- Tab buttons -->
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Bottom"
+                                Margin="24,0,0,0">
+                        <!-- History tab -->
+                        <Button Content="History"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Padding="18,8"
+                                Margin="0,0,2,0"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="OnHistoryTabClick">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSettingsTabActive}" Value="False">
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <!-- Settings tab -->
+                        <Button Content="Settings"
+                                FontSize="13"
+                                FontWeight="SemiBold"
+                                Padding="18,8"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="OnSettingsTabClick">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsSettingsTabActive}" Value="True">
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                    <!-- Close hint -->
+                    <TextBlock Text="Press hotkey or Escape to close"
+                               FontSize="11"
+                               Foreground="#555555"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Margin="0,0,20,0" />
+                </Grid>
+            </Border>
+
+            <!-- ── History tab content ─────────────────────────── -->
+            <ScrollViewer Margin="0,52,0,0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding IsSettingsTabActive, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                <StackPanel>
+                    <!-- Empty state -->
+                    <TextBlock Text="No reward history yet. Complete a relic mission to start tracking."
+                               FontSize="14"
+                               Foreground="#555555"
+                               HorizontalAlignment="Center"
+                               Margin="0,40,0,0"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="400">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HistoryRuns.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <ItemsControl ItemsSource="{Binding HistoryRuns}" Margin="24,12">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#20FFFFFF"
+                                        BorderBrush="#33B08233"
+                                        BorderThickness="0,0,0,1"
+                                        Padding="12,10"
+                                        Margin="0,0,0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Timestamp}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#C7A155"
+                                                   Margin="0,0,0,4" />
+                                        <TextBlock Text="{Binding Items}"
+                                                   FontSize="13"
+                                                   Foreground="#E8E8E8"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ── Settings tab content ────────────────────────── -->
+            <ScrollViewer Margin="0,52,0,0"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding IsSettingsTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Margin="40,24,40,24" MaxWidth="500">
+
+                    <!-- Card Background Colour -->
+                    <TextBlock Text="Card Background Color"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="ARGB hex string, e.g. #EE181410 (first two digits = opacity)"
+                               FontSize="11"
+                               Foreground="#777777"
+                               Margin="0,0,0,8" />
+                    <TextBox Text="{Binding CardBackgroundColor, UpdateSourceTrigger=LostFocus}"
+                             FontSize="13"
+                             Foreground="#E8E8E8"
+                             Background="#1C2028"
+                             BorderBrush="#44B08233"
+                             BorderThickness="1"
+                             Padding="10,6"
+                             Margin="0,0,0,24" />
+
+                    <!-- History / Settings Panel Hotkey -->
+                    <TextBlock Text="Panel Hotkey (History + Settings)"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Key combo that opens/closes this panel. Examples: Shift+Tab, Ctrl+H, F12"
+                               FontSize="11"
+                               Foreground="#777777"
+                               Margin="0,0,0,8" />
+                    <TextBox Text="{Binding HistoryHotkey, UpdateSourceTrigger=LostFocus}"
+                             FontSize="13"
+                             Foreground="#E8E8E8"
+                             Background="#1C2028"
+                             BorderBrush="#44B08233"
+                             BorderThickness="1"
+                             Padding="10,6"
+                             Margin="0,0,0,8" />
+                    <TextBlock Text="Restart the app after changing the hotkey for it to take effect."
+                               FontSize="11"
+                               Foreground="#CC8855"
+                               Margin="0,0,0,24" />
+
+                    <!-- Save note -->
+                    <TextBlock Text="Settings are saved automatically to data/settings.json."
+                               FontSize="11"
+                               Foreground="#555555" />
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </Window>

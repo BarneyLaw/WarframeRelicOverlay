@@ -31,10 +31,18 @@ public sealed class RewardDetectorAdapter : IRewardDetector
     private readonly IRewardScreenDetector _inner;
     private bool _disposed;
 
+    /// <summary>Raised when a reward screen has been detected.</summary>
     public event Action? RewardDetected;
+
+    /// <summary>Raised when a detection streak is broken (non-definitive detectors only).</summary>
     public event Action? RewardLost;
+
+    /// <summary>Raised when the reward screen has been exited.</summary>
     public event Action? RewardScreenExited;
 
+    /// <summary>
+    /// Initialises the adapter and subscribes to the inner detector's events.
+    /// </summary>
     public RewardDetectorAdapter(IRewardScreenDetector inner)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
@@ -43,15 +51,28 @@ public sealed class RewardDetectorAdapter : IRewardDetector
         _inner.RewardScreenExited += OnInnerExited;
     }
 
+    /// <summary>Starts the inner detector.</summary>
     public void Start() => _inner.Start();
+
+    /// <summary>Stops the inner detector.</summary>
     public void Stop() => _inner.Stop();
 
+    /// <summary>
+    /// Forwards the inner detector's screen-detected event as
+    /// <see cref="RewardDetected"/>.
+    /// </summary>
     private void OnInnerDetected()
     {
         Debug.WriteLine("[DetectorAdapter] RewardScreenDetected → RewardDetected");
         RewardDetected?.Invoke();
     }
 
+    /// <summary>
+    /// Forwards the inner detector's screen-exited event.  For definitive
+    /// detectors maps directly to <see cref="RewardScreenExited"/>; for
+    /// non-definitive detectors fires both <see cref="RewardLost"/> and
+    /// <see cref="RewardScreenExited"/>.
+    /// </summary>
     private void OnInnerExited()
     {
         if (_inner.IsDefinitive)
@@ -79,6 +100,7 @@ public sealed class RewardDetectorAdapter : IRewardDetector
         }
     }
 
+    /// <summary>Unsubscribes from the inner detector and disposes it.</summary>
     public void Dispose()
     {
         if (_disposed) return;

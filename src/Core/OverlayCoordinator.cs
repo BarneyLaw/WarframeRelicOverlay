@@ -96,6 +96,10 @@ public sealed class OverlayCoordinator : IDisposable
     public OverlayStateMachine StateMachine => _stateMachine;
 
     // Lifecycle: start tracking and subscribing to events.  Idempotent.
+    /// <summary>
+    /// Subscribes to all events and starts the process tracker and detector.
+    /// Idempotent — safe to call more than once.
+    /// </summary>
     public void Start()
     {
         if (_started) return;
@@ -155,6 +159,10 @@ public sealed class OverlayCoordinator : IDisposable
         _heartbeatTimer?.Dispose();
         _heartbeatTimer = null;
 
+        // Flush any pending history synchronously on disposal so a run
+        // is never lost when the app closes before the display timeout.
+        FlushRewardHistorySync();
+
         CancelPipeline();
         StopDisplayTimeout();
         _detector.Stop();
@@ -163,7 +171,8 @@ public sealed class OverlayCoordinator : IDisposable
         _logger?.LogInfo("OverlayCoordinator disposed.");
     }
 
-        private void OnWarframeStarted(int pid)
+    /// <summary>Fires the WarframeStarted trigger on the state machine.</summary>
+    private void OnWarframeStarted(int pid)
     {
         Debug.WriteLine($"[Coordinator] Warframe started (PID {pid}).");
         _logger?.LogInfo($"Warframe process started (PID {pid}).");
@@ -171,6 +180,7 @@ public sealed class OverlayCoordinator : IDisposable
         _stateMachine.Fire(OverlayTrigger.WarframeStarted);
     }
 
+    /// <summary>Cancels any running pipeline and fires the WarframeStopped trigger.</summary>
     private void OnWarframeStopped(int pid)
     {
         Debug.WriteLine($"[Coordinator] Warframe stopped (PID {pid}).");
@@ -181,7 +191,11 @@ public sealed class OverlayCoordinator : IDisposable
         _stateMachine.Fire(OverlayTrigger.WarframeStopped);
     }
 
-        private void OnRewardDetected()
+    /// <summary>
+    /// Handles a reward-detected event from the detector. Manages streaks for
+    /// OCR mode and confirms immediately for EELog/Manual mode.
+    /// </summary>
+    private void OnRewardDetected()
     {
         if (_disposed) return;
 
@@ -230,6 +244,7 @@ public sealed class OverlayCoordinator : IDisposable
         }
     }
 
+    /// <summary>Resets the detection streak and fires DetectionStreakBroken.</summary>
     private void OnRewardLost()
     {
         if (_disposed) return;
@@ -249,6 +264,7 @@ public sealed class OverlayCoordinator : IDisposable
         }
     }
 
+    /// <summary>Fires the RewardScreenExited trigger on the state machine.</summary>
     private void OnRewardScreenExited()
     {
         if (_disposed) return;
@@ -301,7 +317,11 @@ public sealed class OverlayCoordinator : IDisposable
         }
     }
 
-        private void HandleEnterTracking(OverlayState previous)
+    /// <summary>
+    /// Handles entry into the Tracking state: clears prices if coming from
+    /// Displaying and ensures the detector is running.
+    /// </summary>
+    private void HandleEnterTracking(OverlayState previous)
     {
         // Coming from Displaying or Detecting — clean up.
         if (previous == OverlayState.Displaying)
@@ -316,6 +336,10 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.Start();
     }
  
+    /// <summary>
+    /// Handles entry into the Pricing state: stops detection, shows the loading
+    /// indicator, and kicks off the pipeline on the thread pool.
+    /// </summary>
     private void HandleEnterPricing()
     {
         // Stop detection while the pipeline runs — we don't need more
@@ -330,6 +354,10 @@ public sealed class OverlayCoordinator : IDisposable
         _ = Task.Run(() => RunPipelineAsync(cts.Token));
     }
  
+    /// <summary>
+    /// Handles entry into the Displaying state: hides the loading indicator,
+    /// starts the safety-net display timeout, and restarts the detector.
+    /// </summary>
     private void HandleEnterDisplaying()
     {
         _output.HideLoading();
@@ -346,6 +374,10 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.Start();
     }
  
+    /// <summary>
+    /// Handles entry into the Idle state: cancels the pipeline, stops the
+    /// display timeout, and clears any visible overlay content.
+    /// </summary>
     private void HandleEnterIdle()
     {
         CancelPipeline();
@@ -444,9 +476,10 @@ public sealed class OverlayCoordinator : IDisposable
     // Reward history
 
     /// <summary>
-    /// Captures the just-priced run (timestamped now, when the reward was
-    /// received) and holds it until the reward screen ends, at which point
-    /// <see cref="FlushRewardHistory"/> writes it to the data file.
+    /// Records the completed reward run to the history file immediately
+    /// on a background thread.  Does not wait for the display screen to
+    /// close — this ensures the run is persisted even if the app exits
+    /// before the 15-second display timeout fires.
     /// </summary>
     private void StorePendingRewardHistory(PipelineResult result)
     {
@@ -465,15 +498,20 @@ public sealed class OverlayCoordinator : IDisposable
                 .ToList(),
         };
 
+        // Store in memory in case we need to re-flush on dispose,
+        // and also write to disk immediately.
         lock (_lock) { _pendingHistory = record; }
+
+        var recorder = _historyRecorder;
+        _ = Task.Run(() => recorder.Record(record));
     }
 
     /// <summary>
-    /// Writes the pending run to the reward-history file once the screen has
-    /// ended. Best-effort: the recorder swallows its own I/O errors, and the
-    /// write is offloaded so this state-machine callback stays fast.
+    /// Writes any pending history record to disk synchronously.
+    /// Called from <see cref="Dispose"/> to guarantee the last run
+    /// is saved even when the app closes before the display timeout.
     /// </summary>
-    private void FlushRewardHistory()
+    private void FlushRewardHistorySync()
     {
         RewardRunRecord? record;
         lock (_lock)
@@ -482,14 +520,38 @@ public sealed class OverlayCoordinator : IDisposable
             _pendingHistory = null;
         }
 
+        // Nothing to flush — already written by StorePendingRewardHistory.
+        // This is a no-op in the normal path; it only matters if the async
+        // write in StorePendingRewardHistory hasn't completed yet, which
+        // is unlikely but possible during rapid shutdown.
         if (record is null || _historyRecorder is null) return;
 
-        var recorder = _historyRecorder;
-        _ = Task.Run(() => recorder.Record(record));
+        try
+        {
+            _historyRecorder.Record(record);
+            _logger?.LogInfo("[Coordinator] Flushed pending history on dispose.");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("[Coordinator] Failed to flush history on dispose.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes the pending run asynchronously when the reward screen exits
+    /// normally.  Kept for the normal-path cleanup in <see cref="OnStateChanged"/>.
+    /// </summary>
+    private void FlushRewardHistory()
+    {
+        // Since StorePendingRewardHistory already writes on completion,
+        // this method now just clears the in-memory record to prevent
+        // a double-write on dispose.
+        lock (_lock) { _pendingHistory = null; }
     }
 
     // Display timeout
 
+    /// <summary>Starts (or restarts) the display safety-net timer.</summary>
     private void StartDisplayTimeout()
     {
         StopDisplayTimeout();
@@ -497,12 +559,14 @@ public sealed class OverlayCoordinator : IDisposable
             OnDisplayTimeout, null, DisplayTimeout, Timeout.InfiniteTimeSpan);
     }
  
+    /// <summary>Cancels and disposes the display timeout timer.</summary>
     private void StopDisplayTimeout()
     {
         _displayTimeoutTimer?.Dispose();
         _displayTimeoutTimer = null;
     }
  
+    /// <summary>Timer callback that auto-fires RewardScreenExited after the display timeout.</summary>
     private void OnDisplayTimeout(object? state)
     {
         if (_disposed) return;
@@ -549,6 +613,7 @@ public sealed class OverlayCoordinator : IDisposable
     }
 
     // Pipeline cancellation
+    /// <summary>Cancels and disposes the active pipeline CancellationTokenSource, if any.</summary>
     private void CancelPipeline()
     {
         lock (_lock)

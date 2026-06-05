@@ -53,6 +53,7 @@ public partial class OverlayWindow : Window
         Closing += OnClosing;
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
+        KeyDown += OnKeyDown;
     }
 
     // ── Lifecycle ───────────────────────────────────────────────────
@@ -112,6 +113,78 @@ public partial class OverlayWindow : Window
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         Application.Current?.Shutdown();
+    }
+
+    /// <summary>
+    /// Handles Escape key to close the history panel when it's open.
+    /// Only fires when the window is interactive (history panel visible).
+    /// </summary>
+    private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape)
+        {
+            if (DataContext is OverlayViewModel vm && vm.IsHistoryPanelVisible)
+            {
+                vm.ToggleHistoryPanel();
+                SetInteractive(false);
+                e.Handled = true;
+            }
+        }
+    }
+
+    // ── Tab click handlers ───────────────────────────────────────────
+
+    /// <summary>Switches the panel to the History tab.</summary>
+    private void OnHistoryTabClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is OverlayViewModel vm)
+            vm.ShowHistoryTab();
+    }
+
+    /// <summary>Switches the panel to the Settings tab.</summary>
+    private void OnSettingsTabClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is OverlayViewModel vm)
+            vm.ShowSettingsTab();
+    }
+
+    // ── Click-through toggle ────────────────────────────────────────
+
+    /// <summary>
+    /// Temporarily makes the overlay window interactive (removes
+    /// WS_EX_TRANSPARENT) when the history panel is open, so the user
+    /// can scroll and click within it.  Restores click-through when
+    /// the panel closes.
+    /// </summary>
+    public void SetInteractive(bool interactive)
+    {
+        var helper = new WindowInteropHelper(this);
+        nint hwnd = helper.Handle;
+        if (hwnd == nint.Zero) return;
+
+        nint exStyle = Win32Interop.GetWindowLongPtr(
+            hwnd, Win32Interop.GWL_EXSTYLE);
+
+        if (interactive)
+        {
+            // Remove WS_EX_TRANSPARENT to allow mouse interaction.
+            nint newStyle = exStyle & ~(nint)Win32Interop.WS_EX_TRANSPARENT;
+            Win32Interop.SetWindowLongPtr(
+                hwnd, Win32Interop.GWL_EXSTYLE, newStyle);
+            IsHitTestVisible = true;
+            Focusable = true;
+            Activate();
+            Focus();
+        }
+        else
+        {
+            // Restore click-through.
+            nint newStyle = exStyle | Win32Interop.WS_EX_TRANSPARENT;
+            Win32Interop.SetWindowLongPtr(
+                hwnd, Win32Interop.GWL_EXSTYLE, newStyle);
+            IsHitTestVisible = false;
+            Focusable = false;
+        }
     }
 
     // ── Public surface used by WpfOverlayOutput ─────────────────────
@@ -204,16 +277,77 @@ public partial class OverlayWindow : Window
             },
         };
 
+        // Renders item name (if matched) as a title above the price,
+        // then the platinum price below, then a detail row with buy
+        // price and seller count.
+        var stack = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        if (!string.IsNullOrWhiteSpace(label.ItemName))
+        {
+            Color nameColor = Color.FromRgb(0xE8, 0xE8, 0xE8);
+            stack.Children.Add(new TextBlock
+            {
+                Text = label.ItemName,
+                FontSize = Math.Max(10, fontSize * 0.7),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(nameColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = Math.Max(80, label.MaxWidthDip - 16),
+                Margin = new Thickness(0, 0, 0, 3),
+            });
+        }
+
         // Splits "42p" into the number and a smaller "p" suffix so the
         // price reads at a glance.  Other DisplayText values
-        // ("Untradeable", "N/A", "?") render as a single block.
-        border.Child = BuildPriceRow(
+        // ("N/A", "?") render as a single block.
+        stack.Children.Add(BuildPriceRow(
             label.Text,
             fontSize,
             priceColor,
-            suffixColor);
+            suffixColor));
+
+        // Detail row: "Buy: Xp · Y sellers"
+        string? detailText = BuildDetailText(label.BuyPrice, label.SellerCount);
+        if (detailText is not null)
+        {
+            Color detailColor = Color.FromRgb(0xA8, 0xA8, 0xA8);
+            stack.Children.Add(new TextBlock
+            {
+                Text = detailText,
+                FontSize = Math.Max(9, fontSize * 0.55),
+                Foreground = new SolidColorBrush(detailColor),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+        }
+
+        border.Child = stack;
 
         return border;
+    }
+
+    /// <summary>
+    /// Builds the detail text string showing buy price and seller count.
+    /// Returns <c>null</c> when there's nothing to display.
+    /// </summary>
+    private static string? BuildDetailText(int? buyPrice, int sellerCount)
+    {
+        var parts = new List<string>(2);
+
+        if (buyPrice.HasValue)
+            parts.Add($"Buy: {buyPrice.Value}p");
+
+        if (sellerCount > 0)
+            parts.Add($"{sellerCount} seller{(sellerCount == 1 ? "" : "s")}");
+
+        return parts.Count > 0 ? string.Join(" · ", parts) : null;
     }
 
     /// <summary>
@@ -366,7 +500,19 @@ public partial class OverlayWindow : Window
 /// Maximum width hint for the card; derived from the corresponding
 /// reward card width so the label cannot grow wider than its anchor.
 /// </param>
-/// <param name="Text">Primary text (price / "Untradeable" / "?").</param>
+/// <param name="Text">Primary text (price / "N/A" / "?").</param>
+/// <param name="ItemName">
+/// The matched reward item name (e.g. "Nagantaka Prime Receiver"),
+/// or <c>null</c> when no match was found.
+/// </param>
+/// <param name="BuyPrice">
+/// Highest buy offer in platinum, or <c>null</c> if unavailable.
+/// Displayed as "Buy: Xp" on the detail row.
+/// </param>
+/// <param name="SellerCount">
+/// Number of in-game sellers.  Displayed as "X sellers" on the
+/// detail row.  Zero means no data.
+/// </param>
 /// <param name="IsHighlighted">
 /// <c>true</c> when this card represents the most valuable reward in
 /// the current pipeline result.  Renders with a brighter gold border.
@@ -376,4 +522,7 @@ public readonly record struct PositionedLabel(
     double TopDip,
     double MaxWidthDip,
     string Text,
+    string? ItemName = null,
+    int? BuyPrice = null,
+    int SellerCount = 0,
     bool IsHighlighted = false);
