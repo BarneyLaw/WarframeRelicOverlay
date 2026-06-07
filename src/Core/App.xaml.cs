@@ -148,6 +148,7 @@ public partial class App : Application
 
         string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
         string itemsPath = Path.Combine(dataDir, "items.json");
+        string settingsPath = Path.Combine(dataDir, "settings.json");
         string tessDataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
 
         var services = new ServiceCollection();
