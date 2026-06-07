@@ -7,7 +7,7 @@
   "PriceCacheTtlMinutes": 5,
   "OverlayOpacity": 1.0,
   "PriceFontSizeOverride": 0,
-  "ToggleHotkey": "Shift+F9",
+  "HistoryHotkey": "Shift+Tab",
   "DebugMode": false,
   "SaveDebugImages": false
 }

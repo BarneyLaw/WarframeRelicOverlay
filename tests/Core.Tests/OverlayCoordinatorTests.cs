@@ -233,6 +233,11 @@ public class OverlayCoordinatorTests : IDisposable
             lock (Records) { Records.Add(record); }
             Recorded.Set();
         }
+
+        public List<RewardRunRecord> LoadAll()
+        {
+            lock (Records) { return new List<RewardRunRecord>(Records); }
+        }
     }
 
     // ── Shared setup ────────────────────────────────────────────
