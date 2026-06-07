@@ -1,6 +1,7 @@
 namespace WarframeRelicOverlay.OverlayApp.Detection;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using WarframeRelicOverlay.Core;
@@ -32,18 +33,18 @@ public sealed class LogFileDetector : IRewardScreenDetector
     private const string RewardDetectedEvent = "RewardDetected";
 
     /// <summary>
-    /// Trigger phrases scanned in newly-appended EE.log content.
-    /// Screen-open phrases intentionally fire before reward cards are
-    /// guaranteed visible; the pricing pipeline gates on card layout.
+    /// Built-in trigger phrases that are always scanned regardless of
+    /// what the user configures in <see cref="AppSettings.RewardTriggerPhrases"/>.
+    /// These target known Warframe log lines that fire at reward-screen
+    /// open time.
     /// </summary>
-    private static readonly (string Phrase, string EventName)[] _rewardTriggers =
+    private static readonly string[] _builtInPhrases =
     [
-        ("VoidProjections: OpenVoidProjectionRewardScreen", RewardDetectedEvent),
-        ("Created /Lotus/Interface/ProjectionRewardChoice.swf", RewardDetectedEvent),
-        ("ProjectionRewardChoice.lua: Relic rewards initialized", RewardDetectedEvent),
-        ("ProjectionRewardChoice.lua: Got rewards", RewardDetectedEvent),
-        ("Got rewards", RewardDetectedEvent),
-        ("GotRewards", RewardDetectedEvent),
+        // Screen-open phrases (fire when the reward UI is created):
+        "OpenVoidProjectionRewardScreen",
+        "Created /Lotus/Interface/ProjectionRewardChoice",
+        "ProjectionRewardChoice.lua",
+        "RewardChoice.swf",
     ];
 
     /// <summary>
@@ -57,6 +58,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
 
     private readonly string _logPath;
     private readonly ILogger? _logger;
+    private readonly (string Phrase, string EventName)[] _triggers;
     private FileTriggerWatcher? _watcher;
     private bool _disposed;
 
@@ -91,6 +93,8 @@ public sealed class LogFileDetector : IRewardScreenDetector
     /// <see cref="AppSettings.EeLogPathOverride"/> is set, that
     /// path is used; otherwise the default
     /// <c>%LOCALAPPDATA%\Warframe\EE.log</c>.
+    /// Merges built-in trigger phrases with user-configured
+    /// <see cref="AppSettings.RewardTriggerPhrases"/>.
     /// </summary>
     public LogFileDetector(AppSettings settings, ILogger? logger = null)
     {
@@ -98,6 +102,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
             ? settings!.EeLogPathOverride!
             : GetDefaultLogPath();
         _logger = logger;
+        _triggers = BuildTriggers(settings?.RewardTriggerPhrases);
     }
 
     /// <summary>
@@ -112,6 +117,37 @@ public sealed class LogFileDetector : IRewardScreenDetector
 
         _logPath = logPath;
         _logger = logger;
+        _triggers = BuildTriggers(null);
+    }
+
+    /// <summary>
+    /// Merges built-in phrases with user-configured phrases into a
+    /// single trigger array, deduplicating case-insensitively.
+    /// </summary>
+    private static (string Phrase, string EventName)[] BuildTriggers(
+        List<string>? userPhrases)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<(string, string)>();
+
+        // Built-in phrases first (highest priority, screen-open triggers).
+        foreach (string phrase in _builtInPhrases)
+        {
+            if (seen.Add(phrase))
+                result.Add((phrase, RewardDetectedEvent));
+        }
+
+        // User-configured phrases from settings.json.
+        if (userPhrases is not null)
+        {
+            foreach (string phrase in userPhrases)
+            {
+                if (!string.IsNullOrWhiteSpace(phrase) && seen.Add(phrase.Trim()))
+                    result.Add((phrase.Trim(), RewardDetectedEvent));
+            }
+        }
+
+        return result.ToArray();
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────
@@ -138,7 +174,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
         try
         {
             _watcher = new FileTriggerWatcher(
-                _logPath, _rewardTriggers, _pollInterval, _logger);
+                _logPath, _triggers, _pollInterval, _logger);
             _watcher.OnTriggered += OnWatcherTriggered;
             _watcher.Start();
             _logger?.LogInfo("LogFileDetector started successfully.");

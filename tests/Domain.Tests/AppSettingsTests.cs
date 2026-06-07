@@ -26,7 +26,7 @@ public class AppSettingsTests
         settings.PriceCacheTtlMinutes.Should().Be(5);
         settings.OverlayOpacity.Should().Be(1.0);
         settings.PriceFontSizeOverride.Should().Be(0);
-        settings.HistoryHotkey.Should().Be("Shift+Tab");
+        settings.HistoryHotkey.Should().Be("Ctrl+Tab");
         settings.DebugMode.Should().BeFalse();
         settings.SaveDebugImages.Should().BeFalse();
     }
@@ -108,7 +108,7 @@ public class AppSettingsTests
             settings.DetectionMode.Should().Be("EELog");
             settings.DetectionIntervalMs.Should().Be(250);
             settings.OverlayOpacity.Should().Be(1.0);
-            settings.HistoryHotkey.Should().Be("Shift+Tab");
+            settings.HistoryHotkey.Should().Be("Ctrl+Tab");
         }
         finally
         {
@@ -178,7 +178,7 @@ public class AppSettingsTests
     {
         var s = new AppSettings { HistoryHotkey = "" };
         s.Validate();
-        s.HistoryHotkey.Should().Be("Shift+Tab");
+        s.HistoryHotkey.Should().Be("Ctrl+Tab");
     }
 
     [Fact]

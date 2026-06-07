@@ -76,6 +76,13 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     public event Action<string>? HistoryHotkeyChanged;
 
     /// <summary>
+    /// Raised when the history/settings panel visibility changes.
+    /// The bool indicates whether the panel is now visible.
+    /// Used by the window to toggle click-through (interactive mode).
+    /// </summary>
+    public event Action<bool>? PanelVisibilityChanged;
+
+    /// <summary>
     /// Raised (on the UI thread) with the overlay's target bounds in raw
     /// screen pixels (x, y, width, height).
     /// </summary>
@@ -118,7 +125,11 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     public bool IsHistoryPanelVisible
     {
         get => _isHistoryPanelVisible;
-        private set => SetField(ref _isHistoryPanelVisible, value);
+        private set
+        {
+            if (!SetField(ref _isHistoryPanelVisible, value)) return;
+            PanelVisibilityChanged?.Invoke(value);
+        }
     }
 
     /// <summary>
@@ -405,6 +416,17 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         _logger?.LogInfo($"State: {previous} -> {current} (trigger: {trigger}).");
         RunOnUi(() =>
         {
+            // Auto-close the history/settings panel when a reward is
+            // confirmed so the GDI screen capture sees the game, not
+            // our overlay panel.
+            if ((current == OverlayState.Pricing || current == OverlayState.Detecting)
+                && IsHistoryPanelVisible)
+            {
+                IsHistoryPanelVisible = false;
+                HistoryRuns.Clear();
+                _logger?.LogInfo("Panel auto-closed for reward detection/pricing.");
+            }
+
             UpdateStatusForState(current);
             _overlayStateActive = current != OverlayState.Idle;
             ApplyOverlayVisibility();

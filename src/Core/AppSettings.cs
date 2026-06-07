@@ -19,7 +19,7 @@ public sealed class AppSettings
     public int PriceCacheTtlMinutes { get; set; } = 5;
     public double OverlayOpacity { get; set; } = 1.0;
     public int PriceFontSizeOverride { get; set; } = 0;
-    public string HistoryHotkey { get; set; } = "Shift+Tab";
+    public string HistoryHotkey { get; set; } = "Ctrl+Tab";
     public bool DebugMode { get; set; } = false;
     public bool SaveDebugImages { get; set; } = false;
 
@@ -130,8 +130,8 @@ public sealed class AppSettings
 
         if (string.IsNullOrWhiteSpace(HistoryHotkey))
         {
-            warnings.Add("HistoryHotkey is null or empty, falling back to 'Shift+Tab'.");
-            HistoryHotkey = "Shift+Tab";
+            warnings.Add("HistoryHotkey is null or empty, falling back to 'Ctrl+Tab'.");
+            HistoryHotkey = "Ctrl+Tab";
         }
 
         if (string.IsNullOrWhiteSpace(CardBackgroundColor))

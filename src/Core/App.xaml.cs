@@ -227,7 +227,7 @@ public partial class App : Application
                         sp.GetRequiredService<IProcessTracker>(),
                         sp.GetRequiredService<IWindowTracker>(),
                         settings),
-            _ => new LogFileDetector(settings),
+            _ => new LogFileDetector(settings, sp.GetRequiredService<ILogger>()),
         });
 
         // Application: adapter from IRewardScreenDetector → IRewardDetector
@@ -308,6 +308,14 @@ public partial class App : Application
         {
             overlayWindow.Dispatcher.BeginInvoke(() =>
                 RegisterHistoryHotkey(newCombo));
+        };
+
+        // Toggle click-through when the panel opens/closes (including
+        // the auto-close that happens when pricing starts).
+        _viewModel.PanelVisibilityChanged += visible =>
+        {
+            overlayWindow.Dispatcher.BeginInvoke(() =>
+                overlayWindow.SetInteractive(visible));
         };
     }
 

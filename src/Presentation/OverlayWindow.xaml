@@ -283,7 +283,7 @@
                                FontWeight="SemiBold"
                                Foreground="#F1DCA6"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="Key combo that opens/closes this panel. Examples: Shift+Tab, Ctrl+H, F12"
+                    <TextBlock Text="Key combo that opens/closes this panel. Examples: Ctrl+Tab, Ctrl+H, F12"
                                FontSize="11"
                                Foreground="#777777"
                                Margin="0,0,0,8" />
@@ -295,9 +295,9 @@
                              BorderThickness="1"
                              Padding="10,6"
                              Margin="0,0,0,8" />
-                    <TextBlock Text="Restart the app after changing the hotkey for it to take effect."
+                    <TextBlock Text="Click away from the text box to apply the new hotkey."
                                FontSize="11"
-                               Foreground="#CC8855"
+                               Foreground="#777777"
                                Margin="0,0,0,24" />
 
                     <!-- Save note -->
