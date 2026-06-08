@@ -21,6 +21,12 @@
         <!-- Inverse: true → Collapsed, false → Visible (for History tab hiding when Settings is active) -->
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
 
+        <!-- Inverse bool: true → false, false → true (for disabling slider when Auto is on) -->
+        <local:InverseBooleanConverter x:Key="InverseBoolConverter" />
+
+        <!-- Converts ARGB hex string to SolidColorBrush -->
+        <local:StringToBrushConverter x:Key="StringToBrushConverter" />
+
         <Style x:Key="PriceLabelBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="#D0181410" />
             <Setter Property="BorderBrush" Value="#DDB08233" />
@@ -64,7 +70,16 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Style="{StaticResource PriceLabelBorderStyle}">
-                            <TextBlock Text="{Binding Text}" Style="{StaticResource PriceTextStyle}" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding Text}" Style="{StaticResource PriceTextStyle}" />
+                                <TextBlock Text="{Binding TopPricesText}"
+                                           FontSize="13"
+                                           Foreground="#AAAAAA"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Margin="0,2,0,0"
+                                           Visibility="{Binding HasTopPrices, Converter={StaticResource BoolToVisibilityConverter}}" />
+                            </StackPanel>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -225,25 +240,87 @@
                         </TextBlock.Style>
                     </TextBlock>
 
-                    <ItemsControl ItemsSource="{Binding HistoryRuns}" Margin="24,12">
+                    <!-- Historical price note -->
+                    <TextBlock Text="Prices shown are from the time each reward was detected, not current market prices."
+                               FontSize="11"
+                               Foreground="#555555"
+                               HorizontalAlignment="Center"
+                               Margin="0,12,0,0"
+                               TextAlignment="Center"
+                               FontStyle="Italic" />
+
+                    <!-- History runs as full-width rows with item chips -->
+                    <ItemsControl ItemsSource="{Binding HistoryRuns}" Margin="24,12,24,12">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#20FFFFFF"
-                                        BorderBrush="#33B08233"
+                                <Border Background="#15FFFFFF"
+                                        BorderBrush="#22B08233"
                                         BorderThickness="0,0,0,1"
-                                        Padding="12,10"
-                                        Margin="0,0,0,4">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Timestamp}"
-                                                   FontSize="11"
+                                        Padding="16,12"
+                                        Margin="0,0,0,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <!-- Timestamp on left -->
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding Timestamp}"
+                                                   FontSize="12"
                                                    FontWeight="SemiBold"
                                                    Foreground="#C7A155"
-                                                   Margin="0,0,0,4" />
-                                        <TextBlock Text="{Binding Items}"
-                                                   FontSize="13"
-                                                   Foreground="#E8E8E8"
-                                                   TextWrapping="Wrap" />
-                                    </StackPanel>
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,2,20,0"
+                                                   MinWidth="110" />
+                                        <!-- Item chips flowing across remaining width -->
+                                        <ItemsControl Grid.Column="1"
+                                                      ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="0,0,8,6"
+                                                            CornerRadius="3"
+                                                            Padding="10,5">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#20FFFFFF"/>
+                                                                <Setter Property="BorderBrush" Value="#33B08233"/>
+                                                                <Setter Property="BorderThickness" Value="1"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsHighestPrice}" Value="True">
+                                                                        <Setter Property="BorderBrush" Value="#FFD46A"/>
+                                                                        <Setter Property="BorderThickness" Value="1.5"/>
+                                                                        <Setter Property="Background" Value="#30B08233"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock Text="{Binding DisplayText}"
+                                                                   FontSize="13"
+                                                                   TextWrapping="NoWrap">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="#E8E8E8"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Price}" Value="{x:Null}">
+                                                                            <Setter Property="Foreground" Value="#777777"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsHighestPrice}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#FFE69D"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -256,18 +333,244 @@
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           Visibility="{Binding IsSettingsTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
-                <StackPanel Margin="40,24,40,24" MaxWidth="500">
+                <StackPanel Margin="40,24,40,24" MaxWidth="560">
 
-                    <!-- Card Background Colour -->
-                    <TextBlock Text="Card Background Color"
-                               FontSize="13"
+                    <!-- ═══ Price Display Mode ═══ -->
+                    <TextBlock Text="Price Display"
+                               FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="#F1DCA6"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="ARGB hex string, e.g. #EE181410 (first two digits = opacity)"
-                               FontSize="11"
+                    <TextBlock Text="Which price to show on the overlay card"
+                               FontSize="12"
                                Foreground="#777777"
-                               Margin="0,0,0,8" />
+                               Margin="0,0,0,10" />
+                    <!-- Segmented toggle: Sell / Buy / Both -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
+                        <Button Content="Sell"
+                                Command="{Binding SetPriceDisplayCommand}"
+                                CommandParameter="Sell"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="20,8" Margin="0,0,2,0"
+                                Cursor="Hand" BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PriceDisplay}" Value="Sell">
+                                            <Setter Property="Background" Value="#44B08233"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Buy"
+                                Command="{Binding SetPriceDisplayCommand}"
+                                CommandParameter="Buy"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="20,8" Margin="0,0,2,0"
+                                Cursor="Hand" BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PriceDisplay}" Value="Buy">
+                                            <Setter Property="Background" Value="#44B08233"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Both"
+                                Command="{Binding SetPriceDisplayCommand}"
+                                CommandParameter="Both"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="20,8"
+                                Cursor="Hand" BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PriceDisplay}" Value="Both">
+                                            <Setter Property="Background" Value="#44B08233"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- ═══ Seller Prices Count ═══ -->
+                    <TextBlock Text="Seller Prices Shown"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Show the lowest 1 or lowest 5 seller prices per item on the reward screen"
+                               FontSize="12"
+                               Foreground="#777777"
+                               Margin="0,0,0,10" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
+                        <Button Content="Top 1"
+                                Command="{Binding SetShowTopPricesCommand}"
+                                CommandParameter="1"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="20,8" Margin="0,0,2,0"
+                                Cursor="Hand" BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowTopPrices}" Value="1">
+                                            <Setter Property="Background" Value="#44B08233"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Top 5"
+                                Command="{Binding SetShowTopPricesCommand}"
+                                CommandParameter="5"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="20,8"
+                                Cursor="Hand" BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowTopPrices}" Value="5">
+                                            <Setter Property="Background" Value="#44B08233"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- ═══ Card Background Colour ═══ -->
+                    <TextBlock Text="Card Background Color"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Click a preset or enter a custom ARGB hex value"
+                               FontSize="12"
+                               Foreground="#777777"
+                               Margin="0,0,0,10" />
+                    <!-- Swatch row -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <!-- Swatch 0: Dark Charcoal -->
+                        <Button Command="{Binding SelectSwatchCommand}" CommandParameter="0"
+                                Cursor="Hand" Margin="0,0,8,0" Padding="0"
+                                BorderThickness="0" Background="Transparent">
+                            <Border Width="36" Height="36" CornerRadius="4"
+                                    Background="#EE181410"
+                                    ToolTip="Dark Charcoal (#EE181410)">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#33B08233"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedSwatchIndex}" Value="0">
+                                                <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                        </Button>
+                        <!-- Swatch 1: Transparent -->
+                        <Button Command="{Binding SelectSwatchCommand}" CommandParameter="1"
+                                Cursor="Hand" Margin="0,0,8,0" Padding="0"
+                                BorderThickness="0" Background="Transparent">
+                            <Border Width="36" Height="36" CornerRadius="4"
+                                    Background="#80181410"
+                                    ToolTip="Transparent (#80181410)">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#33B08233"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedSwatchIndex}" Value="1">
+                                                <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                        </Button>
+                        <!-- Swatch 2: Warm Brown -->
+                        <Button Command="{Binding SelectSwatchCommand}" CommandParameter="2"
+                                Cursor="Hand" Margin="0,0,8,0" Padding="0"
+                                BorderThickness="0" Background="Transparent">
+                            <Border Width="36" Height="36" CornerRadius="4"
+                                    Background="#EE2A2015"
+                                    ToolTip="Warm Brown (#EE2A2015)">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#33B08233"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedSwatchIndex}" Value="2">
+                                                <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                        </Button>
+                        <!-- Swatch 3: Deep Blue -->
+                        <Button Command="{Binding SelectSwatchCommand}" CommandParameter="3"
+                                Cursor="Hand" Margin="0,0,8,0" Padding="0"
+                                BorderThickness="0" Background="Transparent">
+                            <Border Width="36" Height="36" CornerRadius="4"
+                                    Background="#EE101828"
+                                    ToolTip="Deep Blue (#EE101828)">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="#33B08233"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SelectedSwatchIndex}" Value="3">
+                                                <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                        </Button>
+                        <!-- Colour preview -->
+                        <Border Width="36" Height="36" CornerRadius="4"
+                                Margin="12,0,0,0"
+                                Background="{Binding CardBackgroundColor, Converter={StaticResource StringToBrushConverter}}"
+                                BorderBrush="#55FFFFFF" BorderThickness="1"
+                                ToolTip="Current colour preview" />
+                    </StackPanel>
+                    <!-- Hex override TextBox -->
                     <TextBox Text="{Binding CardBackgroundColor, UpdateSourceTrigger=LostFocus}"
                              FontSize="13"
                              Foreground="#E8E8E8"
@@ -275,34 +578,172 @@
                              BorderBrush="#44B08233"
                              BorderThickness="1"
                              Padding="10,6"
-                             Margin="0,0,0,24" />
+                             MaxWidth="200"
+                             HorizontalAlignment="Left"
+                             Margin="0,0,0,28" />
 
-                    <!-- History / Settings Panel Hotkey -->
-                    <TextBlock Text="Panel Hotkey (History + Settings)"
-                               FontSize="13"
+                    <!-- ═══ Panel Hotkey ═══ -->
+                    <TextBlock Text="Panel Hotkey"
+                               FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="#F1DCA6"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="Key combo that opens/closes this panel. Examples: Ctrl+Tab, Ctrl+H, F12"
-                               FontSize="11"
+                    <TextBlock Text="Key combo that opens/closes this panel"
+                               FontSize="12"
                                Foreground="#777777"
-                               Margin="0,0,0,8" />
+                               Margin="0,0,0,10" />
+                    <!-- Current hotkey display + record button -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Border Background="#1C2028"
+                                BorderBrush="#44B08233"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="12,6"
+                                Margin="0,0,12,0">
+                            <TextBlock Text="{Binding HotkeyDisplayText}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="#E8E8E8" />
+                        </Border>
+                        <Button Command="{Binding StartHotkeyListeningCommand}"
+                                FontSize="12"
+                                Padding="14,6"
+                                Cursor="Hand"
+                                BorderThickness="1">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#AAAAAA"/>
+                                    <Setter Property="BorderBrush" Value="#44B08233"/>
+                                    <Setter Property="Content" Value="Press keys…"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHotkeyListening}" Value="True">
+                                            <Setter Property="Content" Value="Listening…"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                    <!-- Fallback manual TextBox -->
                     <TextBox Text="{Binding HistoryHotkey, UpdateSourceTrigger=LostFocus}"
-                             FontSize="13"
-                             Foreground="#E8E8E8"
+                             FontSize="12"
+                             Foreground="#888888"
                              Background="#1C2028"
-                             BorderBrush="#44B08233"
+                             BorderBrush="#33B08233"
                              BorderThickness="1"
-                             Padding="10,6"
-                             Margin="0,0,0,8" />
-                    <TextBlock Text="Click away from the text box to apply the new hotkey."
+                             Padding="8,4"
+                             MaxWidth="200"
+                             HorizontalAlignment="Left"
+                             Margin="0,0,0,4" />
+                    <TextBlock Text="Advanced: type hotkey manually (e.g. Ctrl+H)"
                                FontSize="11"
+                               Foreground="#555555"
+                               Margin="0,0,0,28" />
+
+                    <!-- ═══ Overlay Opacity ═══ -->
+                    <TextBlock Text="Overlay Opacity"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Adjust how transparent the price cards appear"
+                               FontSize="12"
                                Foreground="#777777"
-                               Margin="0,0,0,24" />
+                               Margin="0,0,0,10" />
+                    <Grid Margin="0,0,0,28">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="50" />
+                            <ColumnDefinition Width="60" />
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0"
+                                Minimum="0.5" Maximum="1.0"
+                                Value="{Binding OverlayOpacity}"
+                                TickFrequency="0.05"
+                                IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding OpacityPercentLabel}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E8E8E8"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                        <!-- Live preview -->
+                        <Border Grid.Column="2"
+                                Background="#EE181410"
+                                BorderBrush="#DDB08233"
+                                BorderThickness="1"
+                                CornerRadius="3"
+                                Padding="6,3"
+                                Opacity="{Binding OverlayOpacity}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="45◆"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="#F1DCA6" />
+                        </Border>
+                    </Grid>
+
+                    <!-- ═══ Font Size ═══ -->
+                    <TextBlock Text="Price Font Size"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#F1DCA6"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Size of the platinum price text on overlay cards"
+                               FontSize="12"
+                               Foreground="#777777"
+                               Margin="0,0,0,10" />
+                    <!-- Auto checkbox -->
+                    <CheckBox IsChecked="{Binding IsAutoFontSize}"
+                              Margin="0,0,0,8"
+                              Cursor="Hand">
+                        <TextBlock Text="Auto (scale with window size)"
+                                   FontSize="12"
+                                   Foreground="#AAAAAA" />
+                    </CheckBox>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="50" />
+                        </Grid.ColumnDefinitions>
+                        <Slider Grid.Column="0"
+                                Minimum="12" Maximum="32"
+                                Value="{Binding PriceFontSize}"
+                                TickFrequency="1"
+                                IsSnapToTickEnabled="True"
+                                IsEnabled="{Binding IsAutoFontSize, Converter={StaticResource InverseBoolConverter}}"
+                                VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding FontSizeLabel}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="#E8E8E8"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                    <!-- Sample text preview -->
+                    <Border Background="#EE181410"
+                            BorderBrush="#DDB08233"
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="12,6"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,28">
+                        <TextBlock Text="Nikana Prime Blade · 45◆"
+                                   FontSize="{Binding PreviewFontSize}"
+                                   FontWeight="SemiBold"
+                                   Foreground="#F1DCA6" />
+                    </Border>
 
                     <!-- Save note -->
                     <TextBlock Text="Settings are saved automatically to data/settings.json."
-                               FontSize="11"
+                               FontSize="12"
                                Foreground="#555555" />
                 </StackPanel>
             </ScrollViewer>

@@ -24,11 +24,27 @@ public sealed class AppSettings
     public bool SaveDebugImages { get; set; } = false;
 
     /// <summary>
+    /// Which platinum price to show on the overlay card.
+    /// <c>"Sell"</c> = lowest seller price (default),
+    /// <c>"Buy"</c> = highest buy offer,
+    /// <c>"Both"</c> = show sell as primary and buy on detail row.
+    /// </summary>
+    public string PriceDisplay { get; set; } = "Both";
+
+    /// <summary>
     /// Background colour of the price card shown below each reward item,
     /// as an ARGB hex string (e.g. <c>"#EE181410"</c>).  The first two hex
     /// digits are the alpha channel (FF = fully opaque).
     /// </summary>
     public string CardBackgroundColor { get; set; } = "#EE181410";
+
+    /// <summary>
+    /// How many seller prices to show on the overlay card per item.
+    /// <c>1</c> = show only the lowest seller price (default).
+    /// <c>5</c> = show up to 5 lowest seller prices, with the #1 highlighted.
+    /// Only affects the reward screen overlay; history always shows the lowest price.
+    /// </summary>
+    public int ShowTopPrices { get; set; } = 1;
 
     /// <summary>
     /// Phrases scanned (case-insensitively) in newly-appended EE.log
@@ -134,10 +150,22 @@ public sealed class AppSettings
             HistoryHotkey = "Ctrl+Tab";
         }
 
+        if (PriceDisplay is not ("Sell" or "Buy" or "Both"))
+        {
+            warnings.Add($"Unknown PriceDisplay '{PriceDisplay}', falling back to 'Both'.");
+            PriceDisplay = "Both";
+        }
+
         if (string.IsNullOrWhiteSpace(CardBackgroundColor))
         {
             warnings.Add("CardBackgroundColor is null or empty, resetting to default.");
             CardBackgroundColor = "#EE181410";
+        }
+
+        if (ShowTopPrices is not (1 or 5))
+        {
+            warnings.Add($"ShowTopPrices {ShowTopPrices} is not 1 or 5, falling back to 1.");
+            ShowTopPrices = 1;
         }
 
         if (RewardTriggerPhrases is null || RewardTriggerPhrases.Count == 0)

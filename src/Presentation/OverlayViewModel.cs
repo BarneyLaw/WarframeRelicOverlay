@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using WarframeRelicOverlay.Core;
 using WarframeRelicOverlay.Infrastructure.History;
@@ -50,6 +51,13 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private bool _isSettingsTabActive;
     private string _cardBackgroundColor;
     private string _historyHotkey;
+    private string _priceDisplay;
+    private double _overlayOpacity;
+    private int _priceFontSize;
+    private bool _isAutoFontSize;
+    private bool _isHotkeyListening;
+    private int _selectedSwatchIndex;
+    private int _showTopPrices;
     private double _dpiScaleX = 1.0;
     private double _dpiScaleY = 1.0;
     private double _gameOffsetX;
@@ -58,6 +66,17 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     private bool _geometryApplied;
     private bool _positionLogged;
     private string? _lastLoggedFailure;
+
+    // ── Colour swatch presets ───────────────────────────────────────
+
+    /// <summary>Preset card background colour swatches.</summary>
+    public static readonly string[] ColourSwatches =
+    [
+        "#EE181410",  // Dark Charcoal (default)
+        "#80181410",  // Transparent
+        "#EE2A2015",  // Warm Brown
+        "#EE101828",  // Deep Blue
+    ];
 
     // ── Collections ─────────────────────────────────────────────────
 
@@ -152,6 +171,8 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         {
             if (!SetField(ref _cardBackgroundColor, value)) return;
             _settings.CardBackgroundColor = value;
+            // Update swatch selection to reflect new colour.
+            SelectedSwatchIndex = Array.IndexOf(ColourSwatches, value);
             SaveSettingsAsync();
         }
     }
@@ -167,10 +188,152 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         {
             if (!SetField(ref _historyHotkey, value)) return;
             _settings.HistoryHotkey = value;
+            OnPropertyChanged(nameof(HotkeyDisplayText));
             SaveSettingsAsync();
             HistoryHotkeyChanged?.Invoke(value);
         }
     }
+
+    /// <summary>
+    /// Which price to display: "Sell", "Buy", or "Both".
+    /// </summary>
+    public string PriceDisplay
+    {
+        get => _priceDisplay;
+        set
+        {
+            if (!SetField(ref _priceDisplay, value)) return;
+            _settings.PriceDisplay = value;
+            SaveSettingsAsync();
+        }
+    }
+
+    // ── Opacity slider ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Overlay opacity value (range 0.5–1.0). Bound to the opacity slider.
+    /// </summary>
+    public double OverlayOpacity
+    {
+        get => _overlayOpacity;
+        set
+        {
+            double clamped = Math.Clamp(value, 0.5, 1.0);
+            if (!SetField(ref _overlayOpacity, clamped)) return;
+            _settings.OverlayOpacity = clamped;
+            OnPropertyChanged(nameof(OpacityPercentLabel));
+            SaveSettingsAsync();
+        }
+    }
+
+    /// <summary>Formatted opacity percentage for display (e.g. "85%").</summary>
+    public string OpacityPercentLabel => $"{(int)(_overlayOpacity * 100)}%";
+
+    // ── Font size slider ────────────────────────────────────────────
+
+    /// <summary>
+    /// Price font size override (12–32). When 0, auto-scaling is used.
+    /// </summary>
+    public int PriceFontSize
+    {
+        get => _priceFontSize;
+        set
+        {
+            int clamped = _isAutoFontSize ? 0 : Math.Clamp(value, 12, 32);
+            if (!SetField(ref _priceFontSize, clamped)) return;
+            _settings.PriceFontSizeOverride = clamped;
+            OnPropertyChanged(nameof(FontSizeLabel));
+            OnPropertyChanged(nameof(PreviewFontSize));
+            SaveSettingsAsync();
+        }
+    }
+
+    /// <summary>
+    /// When true, font size is determined automatically (PriceFontSizeOverride = 0).
+    /// </summary>
+    public bool IsAutoFontSize
+    {
+        get => _isAutoFontSize;
+        set
+        {
+            if (!SetField(ref _isAutoFontSize, value)) return;
+            if (value)
+            {
+                _priceFontSize = 0;
+                _settings.PriceFontSizeOverride = 0;
+                OnPropertyChanged(nameof(PriceFontSize));
+                OnPropertyChanged(nameof(FontSizeLabel));
+                OnPropertyChanged(nameof(PreviewFontSize));
+                SaveSettingsAsync();
+            }
+            else if (_priceFontSize == 0)
+            {
+                // Restore to a sensible default when unchecking Auto.
+                PriceFontSize = 18;
+            }
+        }
+    }
+
+    /// <summary>Formatted font size label (e.g. "18px" or "Auto").</summary>
+    public string FontSizeLabel => _isAutoFontSize ? "Auto" : $"{_priceFontSize}px";
+
+    /// <summary>Font size for the preview sample (returns 18 when Auto is active).</summary>
+    public int PreviewFontSize => _isAutoFontSize ? 18 : Math.Max(12, _priceFontSize);
+
+    // ── Hotkey recorder ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether the hotkey recorder is in listening mode.
+    /// </summary>
+    public bool IsHotkeyListening
+    {
+        get => _isHotkeyListening;
+        set => SetField(ref _isHotkeyListening, value);
+    }
+
+    /// <summary>
+    /// Formatted display of the current hotkey (e.g. "Ctrl + Tab").
+    /// </summary>
+    public string HotkeyDisplayText =>
+        _historyHotkey.Replace("+", " + ");
+
+    /// <summary>Command to start hotkey listening mode.</summary>
+    public ICommand StartHotkeyListeningCommand { get; private set; } = null!;
+
+    // ── Colour swatch selection ─────────────────────────────────────
+
+    /// <summary>
+    /// Index of the currently selected swatch (-1 if custom hex is active).
+    /// </summary>
+    public int SelectedSwatchIndex
+    {
+        get => _selectedSwatchIndex;
+        set => SetField(ref _selectedSwatchIndex, value);
+    }
+
+    /// <summary>Command to select a colour swatch by index.</summary>
+    public ICommand SelectSwatchCommand { get; private set; } = null!;
+
+    /// <summary>Command to set the price display mode.</summary>
+    public ICommand SetPriceDisplayCommand { get; private set; } = null!;
+
+    /// <summary>
+    /// How many seller prices to show on the reward screen overlay (1 or 5).
+    /// </summary>
+    public int ShowTopPrices
+    {
+        get => _showTopPrices;
+        set
+        {
+            int val = value is 1 or 5 ? value : 1;
+            if (!SetField(ref _showTopPrices, val)) return;
+            _settings.ShowTopPrices = val;
+            SaveSettingsAsync();
+        }
+    }
+
+    /// <summary>Command to set the ShowTopPrices value.</summary>
+    public ICommand SetShowTopPricesCommand { get; private set; } = null!;
 
     // ── Construction ────────────────────────────────────────────────
 
@@ -201,6 +364,42 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         // Initialise mutable bindable fields from current settings.
         _cardBackgroundColor = _settings.CardBackgroundColor;
         _historyHotkey = _settings.HistoryHotkey;
+        _priceDisplay = _settings.PriceDisplay;
+        _overlayOpacity = _settings.OverlayOpacity;
+        _priceFontSize = _settings.PriceFontSizeOverride;
+        _isAutoFontSize = _settings.PriceFontSizeOverride == 0;
+        _showTopPrices = _settings.ShowTopPrices is 1 or 5 ? _settings.ShowTopPrices : 1;
+
+        // Compute initial swatch selection.
+        _selectedSwatchIndex = Array.IndexOf(ColourSwatches, _cardBackgroundColor);
+
+        // Initialise commands.
+        SetPriceDisplayCommand = new RelayCommand(param =>
+        {
+            if (param is string mode && mode is "Sell" or "Buy" or "Both")
+                PriceDisplay = mode;
+        });
+
+        SelectSwatchCommand = new RelayCommand(param =>
+        {
+            if (param is string indexStr && int.TryParse(indexStr, out int idx)
+                && idx >= 0 && idx < ColourSwatches.Length)
+            {
+                SelectedSwatchIndex = idx;
+                CardBackgroundColor = ColourSwatches[idx];
+            }
+        });
+
+        StartHotkeyListeningCommand = new RelayCommand(_ =>
+        {
+            IsHotkeyListening = true;
+        });
+
+        SetShowTopPricesCommand = new RelayCommand(param =>
+        {
+            if (param is string val && int.TryParse(val, out int count))
+                ShowTopPrices = count;
+        });
 
         _stateMachine.StateChanged += OnStateChanged;
     }
@@ -290,18 +489,34 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         for (int i = records.Count - 1; i >= 0; i--)
         {
             var run = records[i];
-            var lines = new System.Text.StringBuilder();
+            var items = new ObservableCollection<HistoryItemViewModel>();
+
+            // Find the max price in this run for highlighting.
+            int? maxPrice = null;
             foreach (var item in run.Items)
             {
-                string name = item.Name ?? "?";
-                string price = item.Price.HasValue ? $"{item.Price.Value}p" : "N/A";
-                lines.AppendLine($"{name} — {price}");
+                if (item.Price.HasValue && (!maxPrice.HasValue || item.Price.Value > maxPrice.Value))
+                    maxPrice = item.Price.Value;
+            }
+
+            foreach (var item in run.Items)
+            {
+                bool isHighest = maxPrice.HasValue
+                    && item.Price.HasValue
+                    && item.Price.Value == maxPrice.Value;
+
+                items.Add(new HistoryItemViewModel
+                {
+                    Name = item.Name ?? "?",
+                    Price = item.Price,
+                    IsHighestPrice = isHighest,
+                });
             }
 
             HistoryRuns.Add(new HistoryRunViewModel
             {
                 Timestamp = run.Timestamp.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-                Items = lines.ToString().TrimEnd(),
+                Items = items,
             });
         }
 
@@ -361,6 +576,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                     IsUntradeable = card.MatchedItem?.IsUntradeable == true,
                     IsFailed = card.MatchedItem is null,
                     BackgroundColor = _cardBackgroundColor,
+                    TopSellPrices = _showTopPrices == 5 ? card.TopSellPrices : [],
                 });
             }
 
@@ -584,6 +800,43 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         return true;
     }
 
+    // ── Hotkey capture ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Called from the code-behind when a key chord is pressed while
+    /// <see cref="IsHotkeyListening"/> is true. Formats the chord and
+    /// applies it as the new hotkey.
+    /// </summary>
+    public void CaptureHotkey(ModifierKeys modifiers, Key key)
+    {
+        if (!IsHotkeyListening) return;
+
+        // Escape cancels.
+        if (key == Key.Escape)
+        {
+            IsHotkeyListening = false;
+            return;
+        }
+
+        // Ignore lone modifier keys.
+        if (key is Key.LeftCtrl or Key.RightCtrl
+            or Key.LeftShift or Key.RightShift
+            or Key.LeftAlt or Key.RightAlt
+            or Key.LWin or Key.RWin
+            or Key.System)
+            return;
+
+        var parts = new List<string>();
+        if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
+        if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+        if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+        if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Win");
+        parts.Add(key.ToString());
+
+        HistoryHotkey = string.Join("+", parts);
+        IsHotkeyListening = false;
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────
 
     /// <summary>Dispatches an action to the UI thread, executing inline if already on it.</summary>
@@ -627,6 +880,23 @@ public sealed class PriceLabel : INotifyPropertyChanged
     /// </summary>
     public string BackgroundColor { get; init; } = "#EE181410";
 
+    /// <summary>
+    /// Up to 5 lowest sell prices for display in Top 5 mode.
+    /// Empty in Top 1 mode.
+    /// </summary>
+    public IReadOnlyList<int> TopSellPrices { get; init; } = [];
+
+    /// <summary>Whether there are additional prices to show below the primary.</summary>
+    public bool HasTopPrices => TopSellPrices.Count > 1;
+
+    /// <summary>
+    /// Formatted string showing prices #2–#5 (the primary is already in Text).
+    /// Example: "44◆ · 43◆ · 42◆ · 40◆"
+    /// </summary>
+    public string TopPricesText => TopSellPrices.Count > 1
+        ? string.Join(" · ", TopSellPrices.Skip(1).Select(p => $"{p}◆"))
+        : string.Empty;
+
     /// <summary>Not used; required by the <see cref="INotifyPropertyChanged"/> interface.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 }
@@ -639,9 +909,26 @@ public sealed class HistoryRunViewModel
     /// <summary>Formatted timestamp (e.g. "2025-06-15 14:32").</summary>
     public required string Timestamp { get; init; }
 
-    /// <summary>
-    /// Multi-line string with one item per line:
-    /// "Item Name — Xp" or "Item Name — N/A".
-    /// </summary>
-    public required string Items { get; init; }
+    /// <summary>Individual items in this run, each with name, price, and highlight state.</summary>
+    public required ObservableCollection<HistoryItemViewModel> Items { get; init; }
+}
+
+/// <summary>
+/// View model for a single reward item within a history run, rendered as a chip.
+/// </summary>
+public sealed class HistoryItemViewModel
+{
+    /// <summary>Matched item name (or "?" if unmatched).</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Platinum price, or null if untradeable/unmatched/failed.</summary>
+    public int? Price { get; init; }
+
+    /// <summary>Whether this item had the highest price in its run.</summary>
+    public bool IsHighestPrice { get; init; }
+
+    /// <summary>Formatted display text for the chip (e.g. "Nagantaka Prime Receiver · 45◆").</summary>
+    public string DisplayText => Price.HasValue
+        ? $"{Name} · {Price.Value}◆"
+        : $"{Name} · N/A";
 }

@@ -52,6 +52,13 @@ public sealed record CardResult
     public int SellerCount { get; init; }
 
     /// <summary>
+    /// Up to 5 lowest sell prices from in-game PC sellers, ordered ascending.
+    /// Used when the user toggles "Top 5" mode on the overlay card.
+    /// Empty when no data is available.
+    /// </summary>
+    public IReadOnlyList<int> TopSellPrices { get; init; } = [];
+
+    /// <summary>
     /// Raw text returned by the OCR engine for this card.
     /// Useful for the debug log tab and for diagnosing match failures.
     /// </summary>
@@ -71,7 +78,7 @@ public sealed record CardResult
     {
         null => "?",
         { IsUntradeable: true } => "N/A",
-        _ when PricePlatinum.HasValue => $"{PricePlatinum.Value}p",
+        _ when PricePlatinum.HasValue => $"{PricePlatinum.Value}◆",
         _ => "N/A",
     };
 }

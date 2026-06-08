@@ -35,7 +35,12 @@ public interface IWarframeMarketAPI
 /// <param name="SellerCount">
 /// Number of distinct in-game PC sell orders returned by the endpoint.
 /// </param>
+/// <param name="TopSellPrices">
+/// Up to 5 lowest sell prices from in-game PC sellers, ordered ascending.
+/// Empty when no sell orders exist.
+/// </param>
 public readonly record struct MarketItemData(
     int? LowestSellPrice,
     int? HighestBuyPrice,
-    int SellerCount);
+    int SellerCount,
+    IReadOnlyList<int> TopSellPrices);

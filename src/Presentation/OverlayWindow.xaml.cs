@@ -116,14 +116,27 @@ public partial class OverlayWindow : Window
     }
 
     /// <summary>
-    /// Handles Escape key to close the history panel when it's open.
-    /// Only fires when the window is interactive (history panel visible).
+    /// Handles key presses when the window is interactive.
+    /// - Escape closes the history panel.
+    /// - When the hotkey recorder is listening, captures the key chord.
     /// </summary>
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (DataContext is not OverlayViewModel vm) return;
+
+        // Hotkey recorder capture takes priority.
+        if (vm.IsHotkeyListening)
+        {
+            var key = e.Key == System.Windows.Input.Key.System ? e.SystemKey : e.Key;
+            var modifiers = System.Windows.Input.Keyboard.Modifiers;
+            vm.CaptureHotkey(modifiers, key);
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == System.Windows.Input.Key.Escape)
         {
-            if (DataContext is OverlayViewModel vm && vm.IsHistoryPanelVisible)
+            if (vm.IsHistoryPanelVisible)
             {
                 vm.ToggleHistoryPanel();
                 SetInteractive(false);
@@ -255,7 +268,7 @@ public partial class OverlayWindow : Window
         Color priceColor = label.IsHighlighted
             ? Color.FromRgb(0xFF, 0xE6, 0x9D)
             : Color.FromRgb(0xF1, 0xDC, 0xA6);
-        Color suffixColor = Color.FromRgb(0xC1, 0x9A, 0x4F);
+        Color suffixColor = Color.FromRgb(0xC0, 0xD8, 0xE8);
 
         var border = new Border
         {
@@ -342,7 +355,7 @@ public partial class OverlayWindow : Window
         var parts = new List<string>(2);
 
         if (buyPrice.HasValue)
-            parts.Add($"Buy: {buyPrice.Value}p");
+            parts.Add($"Buy: {buyPrice.Value}◆");
 
         if (sellerCount > 0)
             parts.Add($"{sellerCount} seller{(sellerCount == 1 ? "" : "s")}");
@@ -401,8 +414,8 @@ public partial class OverlayWindow : Window
     }
 
     /// <summary>
-    /// Splits a string of the form <c>"&lt;digits&gt;p"</c> into the
-    /// numeric portion and the trailing <c>"p"</c> suffix.  Returns
+    /// Splits a string of the form <c>"&lt;digits&gt;◆"</c> into the
+    /// numeric portion and the trailing <c>"◆"</c> suffix.  Returns
     /// <c>false</c> for any other input.
     /// </summary>
     private static bool TrySplitPlatinum(string text, out string number, out string suffix)
@@ -411,7 +424,7 @@ public partial class OverlayWindow : Window
         suffix = string.Empty;
 
         if (string.IsNullOrEmpty(text)) return false;
-        if (text[^1] != 'p' && text[^1] != 'P') return false;
+        if (text[^1] != '◆') return false;
 
         string head = text[..^1];
         if (head.Length == 0) return false;
@@ -422,7 +435,7 @@ public partial class OverlayWindow : Window
         }
 
         number = head;
-        suffix = "p";
+        suffix = "◆";
         return true;
     }
 

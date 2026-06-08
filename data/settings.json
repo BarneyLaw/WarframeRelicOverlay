@@ -9,5 +9,6 @@
   "PriceFontSizeOverride": 0,
   "HistoryHotkey": "Ctrl+Tab",
   "DebugMode": false,
-  "SaveDebugImages": false
+  "SaveDebugImages": false,
+  "PriceDisplay": "Both"
 }

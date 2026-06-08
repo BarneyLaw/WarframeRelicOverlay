@@ -47,7 +47,8 @@ public class CachedPriceProviderTests
             return Task.FromResult<MarketItemData?>(new MarketItemData(
                 LowestSellPrice: price,
                 HighestBuyPrice: price > 1 ? price - 1 : null,
-                SellerCount: 1));
+                SellerCount: 1,
+                TopSellPrices: price.HasValue ? [price.Value] : []));
         }
 
         public int CallCountFor(string slug) =>
