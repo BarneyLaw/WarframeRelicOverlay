@@ -180,12 +180,14 @@ public sealed class WarframeMarketClient : IWarframeMarketAPI
             int? lowestSell = sellOrders.Count > 0 ? sellOrders[0].Platinum : null;
             int? highestBuy = buyOrders.Count > 0 ? buyOrders[0].Platinum : null;
             var topSellPrices = sellOrders.Take(5).Select(o => o.Platinum).ToList();
+            var topBuyPrices = buyOrders.Take(5).Select(o => o.Platinum).ToList();
 
             return new MarketItemData(
                 LowestSellPrice: lowestSell,
                 HighestBuyPrice: highestBuy,
                 SellerCount: sellOrders.Count,
-                TopSellPrices: topSellPrices);
+                TopSellPrices: topSellPrices,
+                TopBuyPrices: topBuyPrices);
         }
         catch
         {

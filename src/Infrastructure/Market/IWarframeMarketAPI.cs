@@ -39,8 +39,13 @@ public interface IWarframeMarketAPI
 /// Up to 5 lowest sell prices from in-game PC sellers, ordered ascending.
 /// Empty when no sell orders exist.
 /// </param>
+/// <param name="TopBuyPrices">
+/// Up to 5 highest buy prices from in-game PC buyers, ordered descending.
+/// Empty when no buy orders exist.
+/// </param>
 public readonly record struct MarketItemData(
     int? LowestSellPrice,
     int? HighestBuyPrice,
     int SellerCount,
-    IReadOnlyList<int> TopSellPrices);
+    IReadOnlyList<int> TopSellPrices,
+    IReadOnlyList<int> TopBuyPrices);

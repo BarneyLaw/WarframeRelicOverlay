@@ -1,10 +1,12 @@
 namespace WarframeRelicOverlay.Presentation;
 
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -489,27 +491,27 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         for (int i = records.Count - 1; i >= 0; i--)
         {
             var run = records[i];
+
+            // Skip runs where every item is unmatched ("?") or has no price ("N/A").
+            bool hasAnyUsefulItem = false;
+            foreach (var item in run.Items)
+            {
+                if (item.Price.HasValue || (item.Name is not null && item.Name != "?"))
+                {
+                    hasAnyUsefulItem = true;
+                    break;
+                }
+            }
+            if (!hasAnyUsefulItem) continue;
+
             var items = new ObservableCollection<HistoryItemViewModel>();
 
-            // Find the max price in this run for highlighting.
-            int? maxPrice = null;
             foreach (var item in run.Items)
             {
-                if (item.Price.HasValue && (!maxPrice.HasValue || item.Price.Value > maxPrice.Value))
-                    maxPrice = item.Price.Value;
-            }
-
-            foreach (var item in run.Items)
-            {
-                bool isHighest = maxPrice.HasValue
-                    && item.Price.HasValue
-                    && item.Price.Value == maxPrice.Value;
-
                 items.Add(new HistoryItemViewModel
                 {
                     Name = item.Name ?? "?",
                     Price = item.Price,
-                    IsHighestPrice = isHighest,
                 });
             }
 
@@ -553,6 +555,8 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         {
             PriceLabels.Clear();
 
+            string mode = _priceDisplay;
+
             foreach (var card in result.Cards)
             {
                 double scaleX = _dpiScaleX;
@@ -561,27 +565,64 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                 double logicalX = _gameOffsetX + card.BoundsInWindow.X / scaleX;
                 double logicalY = _gameOffsetY + card.BoundsInWindow.Y / scaleY;
                 double logicalW = card.BoundsInWindow.Width / scaleX;
+                double logicalH = card.BoundsInWindow.Height / scaleY;
 
-                const double estimatedHalfWidth = 60;
-                double labelLeft = logicalX + (logicalW / 2) - estimatedHalfWidth;
-                // Position card below the item name, matching the 60-DIP gap.
-                double labelTop = logicalY + (card.BoundsInWindow.Height / scaleY) + 8;
+                // Center the price label horizontally under the game card.
+                // Set Left to the card's left edge; MaxWidth to the card's width.
+                // The XAML template uses HorizontalAlignment="Center" inside
+                // a container of MaxWidth, so the label content is centered.
+                double labelLeft = logicalX;
+                // Position card below the game's reward card with a small gap.
+                double labelTop = logicalY + logicalH + 8;
+
+                // Build the primary display text based on price mode.
+                string displayText = BuildDisplayText(card, mode);
 
                 PriceLabels.Add(new PriceLabel
                 {
-                    Text = card.DisplayText,
+                    Text = displayText,
                     ItemName = card.MatchedItem?.CanonicalName,
                     Left = Math.Max(0, labelLeft),
                     Top = Math.Max(0, labelTop),
+                    MaxWidth = Math.Max(80, logicalW),
                     IsUntradeable = card.MatchedItem?.IsUntradeable == true,
                     IsFailed = card.MatchedItem is null,
                     BackgroundColor = _cardBackgroundColor,
                     TopSellPrices = _showTopPrices == 5 ? card.TopSellPrices : [],
+                    TopBuyPrices = _showTopPrices == 5 ? card.TopBuyPrices : [],
+                    BuyPrice = card.HighestBuyPrice,
+                    SellerCount = card.SellerCount,
+                    PriceDisplayMode = mode,
                 });
             }
 
             Debug.WriteLine($"[OverlayVM] Showing {PriceLabels.Count} price label(s).");
         });
+    }
+
+    /// <summary>
+    /// Builds the primary display text for a card based on the price display mode.
+    /// Uses clear labels so users know exactly what price they're looking at.
+    /// In "Both" mode the sell price is primary and the buy price appears in the detail row.
+    /// </summary>
+    private static string BuildDisplayText(CardResult card, string mode)
+    {
+        if (card.MatchedItem is null) return "?";
+        if (card.MatchedItem.IsUntradeable) return "N/A";
+
+        return mode switch
+        {
+            "Buy" => card.HighestBuyPrice.HasValue
+                ? $"Buyers pay: {card.HighestBuyPrice.Value}◆"
+                : "No buyers",
+            "Both" => card.PricePlatinum.HasValue
+                ? $"Sells for: {card.PricePlatinum.Value}◆"
+                : "No sellers",
+            // "Sell" (default)
+            _ => card.PricePlatinum.HasValue
+                ? $"Sells for: {card.PricePlatinum.Value}◆"
+                : "No sellers",
+        };
     }
 
     /// <inheritdoc />
@@ -856,7 +897,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
 /// </summary>
 public sealed class PriceLabel : INotifyPropertyChanged
 {
-    /// <summary>Display text (e.g. "45p", "N/A", "?").</summary>
+    /// <summary>Display text (e.g. "Sell: 45◆", "Buy: 38◆", "N/A", "?").</summary>
     public required string Text { get; init; }
 
     /// <summary>Matched canonical item name, or null if unmatched.</summary>
@@ -867,6 +908,13 @@ public sealed class PriceLabel : INotifyPropertyChanged
 
     /// <summary>Top edge of the label in logical (DIP) units.</summary>
     public required double Top { get; init; }
+
+    /// <summary>
+    /// Width of the game's reward card in DIPs. The price label is
+    /// constrained to this width and centered within it so it aligns
+    /// with the in-game card above.
+    /// </summary>
+    public double MaxWidth { get; init; }
 
     /// <summary>True if the item is untradeable (e.g. Forma).</summary>
     public bool IsUntradeable { get; init; }
@@ -886,16 +934,77 @@ public sealed class PriceLabel : INotifyPropertyChanged
     /// </summary>
     public IReadOnlyList<int> TopSellPrices { get; init; } = [];
 
-    /// <summary>Whether there are additional prices to show below the primary.</summary>
-    public bool HasTopPrices => TopSellPrices.Count > 1;
+    /// <summary>
+    /// Up to 5 highest buy prices for display in Top 5 mode.
+    /// Empty in Top 1 mode.
+    /// </summary>
+    public IReadOnlyList<int> TopBuyPrices { get; init; } = [];
 
     /// <summary>
-    /// Formatted string showing prices #2–#5 (the primary is already in Text).
-    /// Example: "44◆ · 43◆ · 42◆ · 40◆"
+    /// Highest buy offer in platinum, or null if unavailable.
+    /// Shown when price display mode is "Both".
     /// </summary>
-    public string TopPricesText => TopSellPrices.Count > 1
-        ? string.Join(" · ", TopSellPrices.Skip(1).Select(p => $"{p}◆"))
-        : string.Empty;
+    public int? BuyPrice { get; init; }
+
+    /// <summary>
+    /// Number of in-game sellers at or near the lowest sell price.
+    /// </summary>
+    public int SellerCount { get; init; }
+
+    /// <summary>
+    /// The active price display mode ("Sell", "Buy", or "Both").
+    /// Used to determine what labels and detail rows to render.
+    /// </summary>
+    public string PriceDisplayMode { get; init; } = "Sell";
+
+    /// <summary>Whether there are additional prices to show below the primary.</summary>
+    public bool HasTopPrices =>
+        (PriceDisplayMode is "Sell" or "Both" && TopSellPrices.Count > 1)
+        || (PriceDisplayMode is "Buy" or "Both" && TopBuyPrices.Count > 1);
+
+    /// <summary>
+    /// Formatted string showing the additional sell/buy prices.
+    /// Sell prices sorted ascending (cheapest first), buy prices sorted descending (highest first).
+    /// </summary>
+    public string TopPricesText
+    {
+        get
+        {
+            var lines = new List<string>();
+
+            if ((PriceDisplayMode is "Sell" or "Both") && TopSellPrices.Count > 1)
+            {
+                var others = TopSellPrices.Skip(1).OrderBy(p => p).Select(p => $"{p}◆");
+                lines.Add($"Next lowest sellers: {string.Join(", ", others)}");
+            }
+
+            if ((PriceDisplayMode is "Buy" or "Both") && TopBuyPrices.Count > 1)
+            {
+                var others = TopBuyPrices.Skip(1).OrderByDescending(p => p).Select(p => $"{p}◆");
+                lines.Add($"Next highest buyers: {string.Join(", ", others)}");
+            }
+
+            return string.Join("\n", lines);
+        }
+    }
+
+    /// <summary>
+    /// Detail text shown below the primary price.
+    /// In "Both" mode shows the buy price.
+    /// </summary>
+    public string DetailText
+    {
+        get
+        {
+            if (PriceDisplayMode == "Both" && BuyPrice.HasValue)
+                return $"Buyers pay: {BuyPrice.Value}◆";
+
+            return string.Empty;
+        }
+    }
+
+    /// <summary>Whether the detail row has content to display.</summary>
+    public bool HasDetail => !string.IsNullOrEmpty(DetailText);
 
     /// <summary>Not used; required by the <see cref="INotifyPropertyChanged"/> interface.</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -923,9 +1032,6 @@ public sealed class HistoryItemViewModel
 
     /// <summary>Platinum price, or null if untradeable/unmatched/failed.</summary>
     public int? Price { get; init; }
-
-    /// <summary>Whether this item had the highest price in its run.</summary>
-    public bool IsHighestPrice { get; init; }
 
     /// <summary>Formatted display text for the chip (e.g. "Nagantaka Prime Receiver · 45◆").</summary>
     public string DisplayText => Price.HasValue

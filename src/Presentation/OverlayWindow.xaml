@@ -65,19 +65,54 @@
                     <Style TargetType="ContentPresenter">
                         <Setter Property="Canvas.Left" Value="{Binding Left}" />
                         <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                        <Setter Property="Width" Value="{Binding MaxWidth}" />
                     </Style>
                 </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource PriceLabelBorderStyle}">
+                        <Border Style="{StaticResource PriceLabelBorderStyle}"
+                                HorizontalAlignment="Center">
                             <StackPanel>
+                                <!-- Item name (if available) -->
+                                <TextBlock Text="{Binding ItemName}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="#E8E8E8"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           MaxWidth="200"
+                                           Margin="0,0,0,3">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ItemName}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <!-- Primary price (e.g. "Sell: 45◆" or "Buy: 38◆") -->
                                 <TextBlock Text="{Binding Text}" Style="{StaticResource PriceTextStyle}" />
-                                <TextBlock Text="{Binding TopPricesText}"
-                                           FontSize="13"
-                                           Foreground="#AAAAAA"
+                                <!-- Detail row: Buy price (in Both mode) -->
+                                <TextBlock Text="{Binding DetailText}"
+                                           FontSize="11"
+                                           Foreground="#A8A8A8"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            Margin="0,2,0,0"
+                                           Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                <!-- Top sell/buy prices (readable format with headers) -->
+                                <TextBlock Text="{Binding TopPricesText}"
+                                           FontSize="11"
+                                           Foreground="#999999"
+                                           FontStyle="Italic"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0"
                                            Visibility="{Binding HasTopPrices, Converter={StaticResource BoolToVisibilityConverter}}" />
                             </StackPanel>
                         </Border>
@@ -284,21 +319,10 @@
                                                 <DataTemplate>
                                                     <Border Margin="0,0,8,6"
                                                             CornerRadius="3"
-                                                            Padding="10,5">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Background" Value="#20FFFFFF"/>
-                                                                <Setter Property="BorderBrush" Value="#33B08233"/>
-                                                                <Setter Property="BorderThickness" Value="1"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsHighestPrice}" Value="True">
-                                                                        <Setter Property="BorderBrush" Value="#FFD46A"/>
-                                                                        <Setter Property="BorderThickness" Value="1.5"/>
-                                                                        <Setter Property="Background" Value="#30B08233"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
+                                                            Padding="10,5"
+                                                            Background="#20FFFFFF"
+                                                            BorderBrush="#33B08233"
+                                                            BorderThickness="1">
                                                         <TextBlock Text="{Binding DisplayText}"
                                                                    FontSize="13"
                                                                    TextWrapping="NoWrap">
@@ -308,9 +332,6 @@
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Price}" Value="{x:Null}">
                                                                             <Setter Property="Foreground" Value="#777777"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsHighestPrice}" Value="True">
-                                                                            <Setter Property="Foreground" Value="#FFE69D"/>
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
@@ -563,12 +584,25 @@
                                 </Border.Style>
                             </Border>
                         </Button>
-                        <!-- Colour preview -->
-                        <Border Width="36" Height="36" CornerRadius="4"
-                                Margin="12,0,0,0"
+                    </StackPanel>
+                    <!-- Current colour preview (clearly separated from swatches) -->
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,10">
+                        <TextBlock Text="Preview:"
+                                   FontSize="12"
+                                   Foreground="#777777"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0" />
+                        <Border Width="120" Height="32" CornerRadius="4"
                                 Background="{Binding CardBackgroundColor, Converter={StaticResource StringToBrushConverter}}"
                                 BorderBrush="#55FFFFFF" BorderThickness="1"
-                                ToolTip="Current colour preview" />
+                                Padding="10,4">
+                            <TextBlock Text="45◆"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="#F1DCA6"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
                     </StackPanel>
                     <!-- Hex override TextBox -->
                     <TextBox Text="{Binding CardBackgroundColor, UpdateSourceTrigger=LostFocus}"

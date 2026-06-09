@@ -226,6 +226,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             int? buyPrice = null;
             int sellerCount = 0;
             IReadOnlyList<int> topSellPrices = [];
+            IReadOnlyList<int> topBuyPrices = [];
             if (_marketApi is not null)
             {
                 var marketData = await _marketApi.GetMarketDataAsync(slug, cancellationToken);
@@ -234,6 +235,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                     buyPrice = marketData.Value.HighestBuyPrice;
                     sellerCount = marketData.Value.SellerCount;
                     topSellPrices = marketData.Value.TopSellPrices;
+                    topBuyPrices = marketData.Value.TopBuyPrices;
                     // Use the richer sell price if we didn't get one from the cache
                     price ??= marketData.Value.LowestSellPrice;
                 }
@@ -244,7 +246,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
                 $"slug=\"{slug}\", sell={(price.HasValue ? $"{price.Value}p" : "no price")}, " +
                 $"buy={(buyPrice.HasValue ? $"{buyPrice.Value}p" : "none")}, sellers={sellerCount}.");
 
-            return BuildResult(index, cardRect, matchedItem, price, rawOcrText, buyPrice, sellerCount, topSellPrices);
+            return BuildResult(index, cardRect, matchedItem, price, rawOcrText, buyPrice, sellerCount, topSellPrices, topBuyPrices);
         }
         catch (OperationCanceledException)
         {
@@ -566,7 +568,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         string ocrText,
         int? buyPrice = null,
         int sellerCount = 0,
-        IReadOnlyList<int>? topSellPrices = null) =>
+        IReadOnlyList<int>? topSellPrices = null,
+        IReadOnlyList<int>? topBuyPrices = null) =>
         new()
         {
             Index = index,
@@ -576,6 +579,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             HighestBuyPrice = buyPrice,
             SellerCount = sellerCount,
             TopSellPrices = topSellPrices ?? [],
+            TopBuyPrices = topBuyPrices ?? [],
             RawOcrText = ocrText,
         };
 

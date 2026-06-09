@@ -48,7 +48,8 @@ public class CachedPriceProviderTests
                 LowestSellPrice: price,
                 HighestBuyPrice: price > 1 ? price - 1 : null,
                 SellerCount: 1,
-                TopSellPrices: price.HasValue ? [price.Value] : []));
+                TopSellPrices: price.HasValue ? [price.Value] : [],
+                TopBuyPrices: price > 1 ? [price.Value - 1] : []));
         }
 
         public int CallCountFor(string slug) =>

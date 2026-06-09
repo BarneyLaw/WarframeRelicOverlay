@@ -343,7 +343,8 @@ public sealed class OverlayCoordinator : IDisposable
  
     /// <summary>
     /// Handles entry into the Pricing state: stops detection, shows the loading
-    /// indicator, and kicks off the pipeline on the thread pool.
+    /// indicator, starts the 15-second display timeout (aligned with the game's
+    /// reward screen duration), and kicks off the pipeline on the thread pool.
     /// </summary>
     private void HandleEnterPricing()
     {
@@ -351,7 +352,12 @@ public sealed class OverlayCoordinator : IDisposable
         // detection events and the OCR engine pool is about to be busy.
         _detector.Stop();
         _output.ShowLoading();
- 
+
+        // Start the 15-second timer NOW — this aligns with the game's
+        // reward screen countdown which starts when the trigger fires,
+        // not when pricing completes.
+        StartDisplayTimeout();
+
         // Kick off the pipeline on the thread pool.
         var cts = new CancellationTokenSource();
         lock (_lock) { _pipelineCts = cts; }
@@ -360,18 +366,13 @@ public sealed class OverlayCoordinator : IDisposable
     }
  
     /// <summary>
-    /// Handles entry into the Displaying state: hides the loading indicator,
-    /// starts the safety-net display timeout, and restarts the detector.
+    /// Handles entry into the Displaying state: hides the loading indicator
+    /// and restarts the detector so it can fire RewardScreenExited.
+    /// The display timeout was already started in HandleEnterPricing.
     /// </summary>
     private void HandleEnterDisplaying()
     {
         _output.HideLoading();
- 
-        // Start a safety-net timeout.  If the detector supports exit
-        // detection it will fire RewardScreenExited before this, and
-        // we'll cancel the timer.  Otherwise this ensures we always
-        // return to Tracking.
-        StartDisplayTimeout();
  
         // Restart the detector so it can fire RewardScreenExited
         // (or RewardLost in OCR mode, which the coordinator can

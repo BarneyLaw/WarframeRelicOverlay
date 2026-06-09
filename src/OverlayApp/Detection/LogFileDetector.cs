@@ -43,8 +43,7 @@ public sealed class LogFileDetector : IRewardScreenDetector
         // Screen-open phrases (fire when the reward UI is created):
         "OpenVoidProjectionRewardScreen",
         "Created /Lotus/Interface/ProjectionRewardChoice",
-        "ProjectionRewardChoice.lua",
-        "RewardChoice.swf",
+        "ProjectionRewardChoice.lua: Got rewards",
     ];
 
     /// <summary>

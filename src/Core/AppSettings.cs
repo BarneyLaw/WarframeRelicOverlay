@@ -58,7 +58,7 @@ public sealed class AppSettings
     [
         "GotRewards",
         "Got rewards",
-        "ProjectionRewardChoice",
+        "ProjectionRewardChoice.lua: Got rewards",
         "ChooseReward",
         "RewardSelection",
         "Reward selection",

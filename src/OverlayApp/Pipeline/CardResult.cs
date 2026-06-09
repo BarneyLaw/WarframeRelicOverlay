@@ -59,6 +59,13 @@ public sealed record CardResult
     public IReadOnlyList<int> TopSellPrices { get; init; } = [];
 
     /// <summary>
+    /// Up to 5 highest buy prices from in-game PC buyers, ordered descending.
+    /// Used when the user toggles "Top 5" mode on the overlay card.
+    /// Empty when no data is available.
+    /// </summary>
+    public IReadOnlyList<int> TopBuyPrices { get; init; } = [];
+
+    /// <summary>
     /// Raw text returned by the OCR engine for this card.
     /// Useful for the debug log tab and for diagnosing match failures.
     /// </summary>
