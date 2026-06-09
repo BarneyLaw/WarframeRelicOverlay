@@ -10,4 +10,11 @@ public interface IRewardHistoryRecorder
 {
     /// <summary>Appends a single run to the history file.</summary>
     void Record(RewardRunRecord record);
+
+    /// <summary>
+    /// Loads all previously recorded runs from the history file,
+    /// ordered oldest to newest.  Returns an empty list when the file
+    /// is missing, empty, or corrupt.  Never throws.
+    /// </summary>
+    List<RewardRunRecord> LoadAll();
 }

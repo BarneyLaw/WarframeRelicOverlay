@@ -1,10 +1,10 @@
 namespace WarframeRelicOverlay.Core;
 
 using System.Diagnostics;
-using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.Infrastructure.History;
 using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
+using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
 
@@ -45,6 +45,8 @@ public sealed class OverlayCoordinator : IDisposable
     private int _streakCount;
     private CancellationTokenSource? _pipelineCts;
     private Timer? _displayTimeoutTimer;
+    private Timer? _heartbeatTimer;
+    private DateTime _lastEventUtc = DateTime.UtcNow;
     private RewardRunRecord? _pendingHistory;
     private bool _started;
     private bool _disposed;
@@ -56,6 +58,14 @@ public sealed class OverlayCoordinator : IDisposable
     /// <see cref="OverlayTrigger.RewardScreenExited"/> automatically.
     /// </summary>
     private static readonly TimeSpan DisplayTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// How often the coordinator writes a heartbeat line to the log
+    /// summarising its current state and the time since the last event.
+    /// Lets a user verify the overlay is alive without checking the
+    /// process list.
+    /// </summary>
+    private static readonly TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(30);
 
     public OverlayCoordinator(
         OverlayStateMachine stateMachine,
@@ -86,10 +96,21 @@ public sealed class OverlayCoordinator : IDisposable
     public OverlayStateMachine StateMachine => _stateMachine;
 
     // Lifecycle: start tracking and subscribing to events.  Idempotent.
+    /// <summary>
+    /// Subscribes to all events and starts the process tracker and detector.
+    /// Idempotent — safe to call more than once.
+    /// </summary>
     public void Start()
     {
         if (_started) return;
         _started = true;
+
+        _logger?.LogInfo(
+            $"OverlayCoordinator starting: detectionMode={_settings.DetectionMode}, " +
+            $"detectionStreak={_settings.DetectionStreak}, " +
+            $"stabilizationDelayMs={_settings.StabilizationDelayMs}, " +
+            $"displayTimeoutSec={DisplayTimeout.TotalSeconds:F0}, " +
+            $"heartbeatSec={HeartbeatInterval.TotalSeconds:F0}");
 
         // Subscribe to state transitions — this is how the coordinator
         // reacts to state changes caused by its own trigger calls.
@@ -103,6 +124,11 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.RewardDetected += OnRewardDetected;
         _detector.RewardLost += OnRewardLost;
         _detector.RewardScreenExited += OnRewardScreenExited;
+
+        // Heartbeat — periodic "I'm still alive" log so the user can
+        // verify the coordinator is running without external tools.
+        _heartbeatTimer = new Timer(
+            OnHeartbeat, null, HeartbeatInterval, HeartbeatInterval);
 
         // Start the detector to begin monitoring immediately
         _detector.Start();
@@ -121,7 +147,7 @@ public sealed class OverlayCoordinator : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
- 
+
         // Unsubscribe everything to prevent callbacks on a disposed object.
         _stateMachine.StateChanged -= OnStateChanged;
         _processTracker.Started -= OnWarframeStarted;
@@ -129,36 +155,59 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.RewardDetected -= OnRewardDetected;
         _detector.RewardLost -= OnRewardLost;
         _detector.RewardScreenExited -= OnRewardScreenExited;
- 
+
+        _heartbeatTimer?.Dispose();
+        _heartbeatTimer = null;
+
+        // Flush any pending history synchronously on disposal so a run
+        // is never lost when the app closes before the display timeout.
+        FlushRewardHistorySync();
+
         CancelPipeline();
         StopDisplayTimeout();
         _detector.Stop();
         _processTracker.Dispose();
 
+        _logger?.LogInfo("OverlayCoordinator disposed.");
     }
 
-        private void OnWarframeStarted(int pid)
+    /// <summary>Fires the WarframeStarted trigger on the state machine.</summary>
+    private void OnWarframeStarted(int pid)
     {
         Debug.WriteLine($"[Coordinator] Warframe started (PID {pid}).");
+        _logger?.LogInfo($"Warframe process started (PID {pid}).");
+        MarkEvent();
         _stateMachine.Fire(OverlayTrigger.WarframeStarted);
     }
- 
+
+    /// <summary>Cancels any running pipeline and fires the WarframeStopped trigger.</summary>
     private void OnWarframeStopped(int pid)
     {
         Debug.WriteLine($"[Coordinator] Warframe stopped (PID {pid}).");
+        _logger?.LogInfo($"Warframe process stopped (PID {pid}).");
+        MarkEvent();
         CancelPipeline();
         _detector.Stop();
         _stateMachine.Fire(OverlayTrigger.WarframeStopped);
     }
 
-        private void OnRewardDetected()
+    /// <summary>
+    /// Handles a reward-detected event from the detector. Manages streaks for
+    /// OCR mode and confirms immediately for EELog/Manual mode.
+    /// </summary>
+    private void OnRewardDetected()
     {
         if (_disposed) return;
 
         // Don't trigger pricing while the player is alt-tabbed away from the
         // game. The reward log/OCR can still fire in the background, but the
         // overlay is hidden and the user isn't looking at the reward screen.
-        if (!_windowTracker.IsForeground(_processTracker.MainWindowHandle))
+        nint hwnd = _processTracker.MainWindowHandle;
+        bool isFocused = _windowTracker.IsForeground(hwnd);
+        _logger?.LogInfo(
+            $"[Coordinator] RewardDetected fired. hwnd=0x{hwnd:X}, isFocused={isFocused}.");
+
+        if (!isFocused)
         {
             Debug.WriteLine("[Coordinator] Reward detected but Warframe is not focused — ignoring.");
             _logger?.LogInfo("[Coordinator] Reward detected while Warframe not focused; skipping pricing.");
@@ -167,21 +216,27 @@ public sealed class OverlayCoordinator : IDisposable
 
         bool isInstantConfirm =
             _settings.DetectionMode is "EELog" or "Manual";
- 
+
         if (isInstantConfirm)
         {
             Debug.WriteLine("[Coordinator] Reward confirmed (instant).");
+            _logger?.LogInfo(
+                $"OverlayCoordinator: RewardDetected received (mode={_settings.DetectionMode}) " +
+                "— confirming immediately.");
             _stateMachine.Fire(OverlayTrigger.RewardConfirmed);
             return;
         }
- 
+
         // OCR mode — manage streak.
         lock (_lock)
         {
             _streakCount++;
             Debug.WriteLine(
                 $"[Coordinator] OCR streak {_streakCount}/{_settings.DetectionStreak}.");
- 
+            _logger?.LogInfo(
+                $"OverlayCoordinator: RewardDetected received (mode=OCR) — " +
+                $"streak {_streakCount}/{_settings.DetectionStreak}.");
+
             if (_streakCount >= _settings.DetectionStreak)
             {
                 _streakCount = 0;
@@ -194,26 +249,35 @@ public sealed class OverlayCoordinator : IDisposable
         }
     }
 
+    /// <summary>Resets the detection streak and fires DetectionStreakBroken.</summary>
     private void OnRewardLost()
     {
         if (_disposed) return;
- 
+
+        MarkEvent();
+
         lock (_lock)
         {
             if (_streakCount > 0)
             {
                 Debug.WriteLine("[Coordinator] OCR streak broken.");
+                _logger?.LogInfo(
+                    $"OverlayCoordinator: RewardLost — streak broken at {_streakCount}.");
                 _streakCount = 0;
                 _stateMachine.Fire(OverlayTrigger.DetectionStreakBroken);
             }
         }
     }
- 
+
+    /// <summary>Fires the RewardScreenExited trigger on the state machine.</summary>
     private void OnRewardScreenExited()
     {
         if (_disposed) return;
- 
+
+        MarkEvent();
+
         Debug.WriteLine("[Coordinator] Reward screen exited (detector).");
+        _logger?.LogInfo("OverlayCoordinator: RewardScreenExited received from detector.");
         // This should remove the prices display on our UI.
         _stateMachine.Fire(OverlayTrigger.RewardScreenExited);
     }
@@ -258,7 +322,11 @@ public sealed class OverlayCoordinator : IDisposable
         }
     }
 
-        private void HandleEnterTracking(OverlayState previous)
+    /// <summary>
+    /// Handles entry into the Tracking state: clears prices if coming from
+    /// Displaying and ensures the detector is running.
+    /// </summary>
+    private void HandleEnterTracking(OverlayState previous)
     {
         // Coming from Displaying or Detecting — clean up.
         if (previous == OverlayState.Displaying)
@@ -273,13 +341,23 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.Start();
     }
  
+    /// <summary>
+    /// Handles entry into the Pricing state: stops detection, shows the loading
+    /// indicator, starts the 15-second display timeout (aligned with the game's
+    /// reward screen duration), and kicks off the pipeline on the thread pool.
+    /// </summary>
     private void HandleEnterPricing()
     {
         // Stop detection while the pipeline runs — we don't need more
         // detection events and the OCR engine pool is about to be busy.
         _detector.Stop();
         _output.ShowLoading();
- 
+
+        // Start the 15-second timer NOW — this aligns with the game's
+        // reward screen countdown which starts when the trigger fires,
+        // not when pricing completes.
+        StartDisplayTimeout();
+
         // Kick off the pipeline on the thread pool.
         var cts = new CancellationTokenSource();
         lock (_lock) { _pipelineCts = cts; }
@@ -287,15 +365,14 @@ public sealed class OverlayCoordinator : IDisposable
         _ = Task.Run(() => RunPipelineAsync(cts.Token));
     }
  
+    /// <summary>
+    /// Handles entry into the Displaying state: hides the loading indicator
+    /// and restarts the detector so it can fire RewardScreenExited.
+    /// The display timeout was already started in HandleEnterPricing.
+    /// </summary>
     private void HandleEnterDisplaying()
     {
         _output.HideLoading();
- 
-        // Start a safety-net timeout.  If the detector supports exit
-        // detection it will fire RewardScreenExited before this, and
-        // we'll cancel the timer.  Otherwise this ensures we always
-        // return to Tracking.
-        StartDisplayTimeout();
  
         // Restart the detector so it can fire RewardScreenExited
         // (or RewardLost in OCR mode, which the coordinator can
@@ -303,6 +380,10 @@ public sealed class OverlayCoordinator : IDisposable
         _detector.Start();
     }
  
+    /// <summary>
+    /// Handles entry into the Idle state: cancels the pipeline, stops the
+    /// display timeout, and clears any visible overlay content.
+    /// </summary>
     private void HandleEnterIdle()
     {
         CancelPipeline();
@@ -350,13 +431,13 @@ public sealed class OverlayCoordinator : IDisposable
  
             // Run the pipeline.
             var result = await _pipeline.ExecuteAsync(window.Value, cancellationToken);
- 
+
             // Re-check cancellation after the pipeline returns.
             // CancelPipeline() may have fired while the pipeline was
             // finishing — without this guard we'd push prices to the
             // overlay after WarframeStopped already moved us to Idle.
             cancellationToken.ThrowIfCancellationRequested();
- 
+
             if (result.HasCards)
             {
                 Debug.WriteLine(
@@ -401,9 +482,10 @@ public sealed class OverlayCoordinator : IDisposable
     // Reward history
 
     /// <summary>
-    /// Captures the just-priced run (timestamped now, when the reward was
-    /// received) and holds it until the reward screen ends, at which point
-    /// <see cref="FlushRewardHistory"/> writes it to the data file.
+    /// Records the completed reward run to the history file immediately
+    /// on a background thread.  Does not wait for the display screen to
+    /// close — this ensures the run is persisted even if the app exits
+    /// before the 15-second display timeout fires.
     /// </summary>
     private void StorePendingRewardHistory(PipelineResult result)
     {
@@ -422,15 +504,20 @@ public sealed class OverlayCoordinator : IDisposable
                 .ToList(),
         };
 
+        // Store in memory in case we need to re-flush on dispose,
+        // and also write to disk immediately.
         lock (_lock) { _pendingHistory = record; }
+
+        var recorder = _historyRecorder;
+        _ = Task.Run(() => recorder.Record(record));
     }
 
     /// <summary>
-    /// Writes the pending run to the reward-history file once the screen has
-    /// ended. Best-effort: the recorder swallows its own I/O errors, and the
-    /// write is offloaded so this state-machine callback stays fast.
+    /// Writes any pending history record to disk synchronously.
+    /// Called from <see cref="Dispose"/> to guarantee the last run
+    /// is saved even when the app closes before the display timeout.
     /// </summary>
-    private void FlushRewardHistory()
+    private void FlushRewardHistorySync()
     {
         RewardRunRecord? record;
         lock (_lock)
@@ -439,14 +526,38 @@ public sealed class OverlayCoordinator : IDisposable
             _pendingHistory = null;
         }
 
+        // Nothing to flush — already written by StorePendingRewardHistory.
+        // This is a no-op in the normal path; it only matters if the async
+        // write in StorePendingRewardHistory hasn't completed yet, which
+        // is unlikely but possible during rapid shutdown.
         if (record is null || _historyRecorder is null) return;
 
-        var recorder = _historyRecorder;
-        _ = Task.Run(() => recorder.Record(record));
+        try
+        {
+            _historyRecorder.Record(record);
+            _logger?.LogInfo("[Coordinator] Flushed pending history on dispose.");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("[Coordinator] Failed to flush history on dispose.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Writes the pending run asynchronously when the reward screen exits
+    /// normally.  Kept for the normal-path cleanup in <see cref="OnStateChanged"/>.
+    /// </summary>
+    private void FlushRewardHistory()
+    {
+        // Since StorePendingRewardHistory already writes on completion,
+        // this method now just clears the in-memory record to prevent
+        // a double-write on dispose.
+        lock (_lock) { _pendingHistory = null; }
     }
 
     // Display timeout
 
+    /// <summary>Starts (or restarts) the display safety-net timer.</summary>
     private void StartDisplayTimeout()
     {
         StopDisplayTimeout();
@@ -454,21 +565,61 @@ public sealed class OverlayCoordinator : IDisposable
             OnDisplayTimeout, null, DisplayTimeout, Timeout.InfiniteTimeSpan);
     }
  
+    /// <summary>Cancels and disposes the display timeout timer.</summary>
     private void StopDisplayTimeout()
     {
         _displayTimeoutTimer?.Dispose();
         _displayTimeoutTimer = null;
     }
  
+    /// <summary>Timer callback that auto-fires RewardScreenExited after the display timeout.</summary>
     private void OnDisplayTimeout(object? state)
     {
         if (_disposed) return;
- 
+
         Debug.WriteLine("[Coordinator] Display timeout — auto-clearing prices.");
+        _logger?.LogInfo(
+            $"Display timeout ({DisplayTimeout.TotalSeconds:F0}s) elapsed — " +
+            "auto-firing RewardScreenExited.");
         _stateMachine.Fire(OverlayTrigger.RewardScreenExited);
     }
 
+    // ── Heartbeat ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Periodic "still alive" log line so the user can verify the
+    /// coordinator is running and inspect how long it has been since
+    /// the last meaningful event.  Useful for diagnosing the case
+    /// where the overlay is running but no detection ever fires.
+    /// </summary>
+    private void OnHeartbeat(object? state)
+    {
+        if (_disposed) return;
+
+        TimeSpan sinceLastEvent;
+        lock (_lock)
+        {
+            sinceLastEvent = DateTime.UtcNow - _lastEventUtc;
+        }
+
+        _logger?.LogInfo(
+            $"Heartbeat: state={_stateMachine.Current}, " +
+            $"warframeRunning={_processTracker.IsRunning}, " +
+            $"sinceLastEvent={sinceLastEvent.TotalSeconds:F0}s");
+    }
+
+    /// <summary>
+    /// Records the current UTC timestamp as the moment of the most
+    /// recent meaningful event.  Used by the heartbeat to report how
+    /// long the coordinator has been idle.
+    /// </summary>
+    private void MarkEvent()
+    {
+        lock (_lock) { _lastEventUtc = DateTime.UtcNow; }
+    }
+
     // Pipeline cancellation
+    /// <summary>Cancels and disposes the active pipeline CancellationTokenSource, if any.</summary>
     private void CancelPipeline()
     {
         lock (_lock)

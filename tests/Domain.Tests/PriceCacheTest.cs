@@ -32,6 +32,26 @@ public class CachedPriceProviderTests
             return Task.FromResult(price);
         }
 
+        /// <summary>
+        /// Returns a synthetic <see cref="MarketItemData"/> built from the
+        /// same <see cref="Prices"/> dictionary used by the sell-price method.
+        /// </summary>
+        public Task<MarketItemData?> GetMarketDataAsync(string slug, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            int? price = Prices.TryGetValue(slug, out var p) ? p : null;
+            if (price is null)
+                return Task.FromResult<MarketItemData?>(null);
+
+            return Task.FromResult<MarketItemData?>(new MarketItemData(
+                LowestSellPrice: price,
+                HighestBuyPrice: price > 1 ? price - 1 : null,
+                SellerCount: 1,
+                TopSellPrices: price.HasValue ? [price.Value] : [],
+                TopBuyPrices: price > 1 ? [price.Value - 1] : []));
+        }
+
         public int CallCountFor(string slug) =>
             CallCounts.TryGetValue(slug, out var count) ? count : 0;
     }

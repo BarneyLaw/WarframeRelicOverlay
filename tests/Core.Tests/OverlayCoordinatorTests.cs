@@ -233,6 +233,11 @@ public class OverlayCoordinatorTests : IDisposable
             lock (Records) { Records.Add(record); }
             Recorded.Set();
         }
+
+        public List<RewardRunRecord> LoadAll()
+        {
+            lock (Records) { return new List<RewardRunRecord>(Records); }
+        }
     }
 
     // ── Shared setup ────────────────────────────────────────────
@@ -275,6 +280,7 @@ public class OverlayCoordinatorTests : IDisposable
             _pipeline,
             _output,
             settings ?? MakeSettings(),
+            logger: null,
             historyRecorder: historyRecorder);
     }
 

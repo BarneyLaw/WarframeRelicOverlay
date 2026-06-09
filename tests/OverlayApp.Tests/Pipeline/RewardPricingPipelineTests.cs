@@ -125,6 +125,8 @@ public class RewardPricingPipelineTests
             return Task.FromResult(price);
         }
 
+        public Task<int?> GetPriceAsync(string itemName) => GetPriceAsync(itemName, CancellationToken.None);
+
         public int CallCount => _calls;
     }
 
