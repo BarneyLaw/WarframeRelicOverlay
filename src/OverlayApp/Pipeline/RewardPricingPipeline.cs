@@ -216,7 +216,13 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            string slug = MarketSlugConverter.ToSlug(matchedItem.CanonicalName);
+            // Prefer the slug precomputed when the reward pool was generated
+            // (in-game name joined against the live market catalog). Fall back
+            // to deriving one from the name only for older pools that predate
+            // slug enrichment.
+            string slug = !string.IsNullOrWhiteSpace(matchedItem.MarketSlug)
+                ? matchedItem.MarketSlug!
+                : MarketSlugConverter.ToSlug(matchedItem.CanonicalName);
             LogInfo(runId, $"Card {index}: price lookup starting; slug=\"{slug}\".");
             price = await _priceProvider.GetPriceAsync(slug, cancellationToken);
 

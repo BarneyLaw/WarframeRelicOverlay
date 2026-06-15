@@ -141,7 +141,8 @@ public sealed class JsonRewardRepository : IRewardRepository
                 continue;
             }
  
-            items.Add(new RewardItem(trimmed, dto.Untradeable));
+            string? slug = string.IsNullOrWhiteSpace(dto.Slug) ? null : dto.Slug.Trim();
+            items.Add(new RewardItem(trimmed, dto.Untradeable, slug));
         }
  
         _items = items.AsReadOnly();
@@ -173,6 +174,12 @@ public sealed class JsonRewardRepository : IRewardRepository
     {
         public string Name { get; set; } = string.Empty;
         public bool Untradeable { get; set; }
+
+        /// <summary>
+        /// Warframe Market slug (url_name) precomputed at pool-generation time.
+        /// Null/absent for untradeable items or older pools without slug enrichment.
+        /// </summary>
+        public string? Slug { get; set; }
     }
 
 
