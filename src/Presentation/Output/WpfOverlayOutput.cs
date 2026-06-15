@@ -1,4 +1,4 @@
-namespace WarframeRelicOverlay.Presentation;
+namespace WarframeRelicOverlay.Presentation.Output;
 
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,8 @@ using WarframeRelicOverlay.Infrastructure.Logging;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
+using WarframeRelicOverlay.Presentation.Layout;
+using WarframeRelicOverlay.Presentation.Views;
 
 /// <summary>
 /// Implementation of <see cref="IOverlayOutput"/> that drives the

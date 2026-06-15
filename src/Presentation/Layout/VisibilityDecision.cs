@@ -1,4 +1,4 @@
-namespace WarframeRelicOverlay.Presentation;
+namespace WarframeRelicOverlay.Presentation.Layout;
 
 using WarframeRelicOverlay.OverlayApp.StateMachine;
 

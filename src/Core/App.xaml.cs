@@ -21,7 +21,10 @@ using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Layout;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
-using WarframeRelicOverlay.Presentation;
+using WarframeRelicOverlay.Presentation.Debugging;
+using WarframeRelicOverlay.Presentation.Input;
+using WarframeRelicOverlay.Presentation.ViewModels;
+using WarframeRelicOverlay.Presentation.Views;
 
 /// <summary>
 /// Application entry point.  Supports two launch modes:
