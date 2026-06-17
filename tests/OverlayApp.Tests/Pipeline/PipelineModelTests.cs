@@ -33,7 +33,7 @@ public class PipelineModelTests
     }
 
     [Fact]
-    public void DisplayText_Untradeable_ReturnsUntradeable()
+    public void DisplayText_Untradeable_ReturnsNA()
     {
         var card = new CardResult
         {
@@ -43,7 +43,7 @@ public class PipelineModelTests
             PricePlatinum = null,
         };
 
-        card.DisplayText.Should().Be("Untradeable");
+        card.DisplayText.Should().Be("N/A");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class PipelineModelTests
             PricePlatinum = 42,
         };
 
-        card.DisplayText.Should().Be("42p");
+        card.DisplayText.Should().Be("42◆");
     }
 
     [Fact]

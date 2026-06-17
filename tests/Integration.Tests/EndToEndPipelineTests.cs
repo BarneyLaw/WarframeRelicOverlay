@@ -265,9 +265,9 @@ public sealed class EndToEndPipelineTests : IDisposable
         // Append the trigger phrase. The LogFileDetector polls every
         // ~200ms, so the event should fire within a few hundred ms.
         File.AppendAllText(_eeLogPath,
-            $"[{DateTime.Now:HH:mm:ss}] Script [Info]: GotRewards\n");
- 
-        _testOutput.WriteLine("[Test] Wrote 'GotRewards' to temp EE.log.");
+            $"[{DateTime.Now:HH:mm:ss}] Script [Info]: ProjectionRewardChoice.lua: Got rewards\n");
+
+        _testOutput.WriteLine("[Test] Wrote reward trigger phrase to temp EE.log.");
  
         // ── Wait for pipeline completion ─────────────────────────
  
