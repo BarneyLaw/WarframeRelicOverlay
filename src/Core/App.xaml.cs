@@ -21,7 +21,10 @@ using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Layout;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
-using WarframeRelicOverlay.Presentation;
+using WarframeRelicOverlay.Presentation.Debugging;
+using WarframeRelicOverlay.Presentation.Input;
+using WarframeRelicOverlay.Presentation.ViewModels;
+using WarframeRelicOverlay.Presentation.Views;
 
 /// <summary>
 /// Application entry point.  Supports two launch modes:
@@ -43,6 +46,7 @@ public partial class App : Application
     private IProcessTracker? _processTracker;
     private ILogger? _logger;
 
+    /// <summary>Bootstraps the application on startup, choosing between debug and normal mode.</summary>
     private void OnStartup(object sender, StartupEventArgs e)
     {
         // Build the logger first thing so every step below is captured,
@@ -95,6 +99,10 @@ public partial class App : Application
     // Only needs the state machine, view model, and simulator.
     // No OCR, no screen capture, no market API, no Tesseract.
 
+    /// <summary>
+    /// Starts the application in debug mode using stub infrastructure and a
+    /// <see cref="DebugSimulator"/> to drive fake reward cycles.
+    /// </summary>
     private void StartDebugMode(AppSettings settings, ILogger logger)
     {
         logger.LogInfo("Starting DEBUG mode (no real OCR / capture / market).");
@@ -133,12 +141,17 @@ public partial class App : Application
     // ── Normal mode ─────────────────────────────────────────────────
     // Full DI container with all real services.
 
+    /// <summary>
+    /// Starts the application in normal mode with the full DI container,
+    /// real OCR, screen capture, market API, and process tracking.
+    /// </summary>
     private void StartNormalMode(AppSettings settings, ILogger logger)
     {
         logger.LogInfo("Starting NORMAL mode.");
 
         string dataDir = Path.Combine(AppContext.BaseDirectory, "data");
         string itemsPath = Path.Combine(dataDir, "items.json");
+        string settingsPath = Path.Combine(dataDir, "settings.json");
         string tessDataPath = Path.Combine(AppContext.BaseDirectory, "tessdata");
 
         var services = new ServiceCollection();
@@ -195,6 +208,16 @@ public partial class App : Application
         services.AddSingleton<IRewardRepository>(
             _ => new JsonRewardRepository(itemsPath));
 
+        // Infrastructure: best-effort reward-pool refresher. Regenerates
+        // items.json on launch by joining WFCD relic drops against the
+        // warframe.market catalog. Runs in the background (see below) and
+        // takes effect on the next launch since the matcher snapshots the
+        // pool at startup.
+        services.AddSingleton(sp => new RewardCatalogRefresher(
+            sp.GetRequiredService<HttpClient>(),
+            itemsPath,
+            sp.GetRequiredService<ILogger>()));
+
         // Domain: matching
         services.AddSingleton<IRewardMatcher, FuzzyRewardMatcher>();
 
@@ -217,7 +240,7 @@ public partial class App : Application
                         sp.GetRequiredService<IProcessTracker>(),
                         sp.GetRequiredService<IWindowTracker>(),
                         settings),
-            _ => new LogFileDetector(settings),
+            _ => new LogFileDetector(settings, sp.GetRequiredService<ILogger>()),
         });
 
         // Application: adapter from IRewardScreenDetector → IRewardDetector
@@ -232,7 +255,14 @@ public partial class App : Application
         services.AddSingleton<OverlayStateMachine>();
 
         // Presentation: ViewModel (implements IOverlayOutput)
-        services.AddSingleton<OverlayViewModel>();
+        services.AddSingleton<OverlayViewModel>(sp => new OverlayViewModel(
+            sp.GetRequiredService<OverlayStateMachine>(),
+            sp.GetRequiredService<IWindowTracker>(),
+            sp.GetRequiredService<IProcessTracker>(),
+            sp.GetRequiredService<ILogger>(),
+            sp.GetRequiredService<IRewardHistoryRecorder>(),
+            sp.GetRequiredService<AppSettings>(),
+            settingsPath));
         services.AddSingleton<IOverlayOutput>(sp =>
             sp.GetRequiredService<OverlayViewModel>());
 
@@ -259,8 +289,57 @@ public partial class App : Application
         logger.LogInfo("Position tracking started.");
         _coordinator.Start();
         logger.LogInfo("Coordinator started. Normal mode ready.");
+
+        // Best-effort: refresh the reward pool from the live data sources in
+        // the background. Fire-and-forget — it never blocks startup and
+        // swallows its own errors, leaving the shipped items.json in place if
+        // the network is unavailable.
+        var catalogRefresher = _serviceProvider.GetRequiredService<RewardCatalogRefresher>();
+        _ = Task.Run(() => catalogRefresher.RefreshIfStaleAsync());
+
+        // Register the global hotkey for the history/settings panel.
+        // Uses the combo from settings so the user can change it in-app.
+        HotkeyManager? hotkeyManager = null;
+
+        void RegisterHistoryHotkey(string combo)
+        {
+            hotkeyManager?.Dispose();
+            hotkeyManager = new HotkeyManager(
+                overlayWindow,
+                combo,
+                () =>
+                {
+                    _viewModel?.ToggleHistoryPanel();
+                    overlayWindow.Dispatcher.BeginInvoke(() =>
+                        overlayWindow.SetInteractive(
+                            _viewModel?.IsHistoryPanelVisible == true));
+                },
+                logger);
+            hotkeyManager.TryRegister();
+            logger.LogInfo($"History panel hotkey registered: '{combo}'.");
+        }
+
+        // Register initial hotkey from settings.
+        RegisterHistoryHotkey(settings.HistoryHotkey);
+
+        // Re-register automatically if the user changes the hotkey
+        // in the Settings tab while the app is running.
+        _viewModel.HistoryHotkeyChanged += newCombo =>
+        {
+            overlayWindow.Dispatcher.BeginInvoke(() =>
+                RegisterHistoryHotkey(newCombo));
+        };
+
+        // Toggle click-through when the panel opens/closes (including
+        // the auto-close that happens when pricing starts).
+        _viewModel.PanelVisibilityChanged += visible =>
+        {
+            overlayWindow.Dispatcher.BeginInvoke(() =>
+                overlayWindow.SetInteractive(visible));
+        };
     }
 
+    /// <summary>Disposes resources and logs application shutdown.</summary>
     private void OnExit(object sender, ExitEventArgs e)
     {
         _logger?.LogInfo($"Application exiting (code {e.ApplicationExitCode}).");

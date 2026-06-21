@@ -72,6 +72,21 @@ public sealed class JsonRewardHistoryRecorder : IRewardHistoryRecorder
         }
     }
 
+    /// <inheritdoc />
+    public List<RewardRunRecord> LoadAll()
+    {
+        try
+        {
+            lock (_lock) { return ReadExisting(); }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError("[RewardHistory] Failed to load history.", ex);
+            return [];
+        }
+    }
+
+    /// <summary>Reads all existing history records from the JSON file.</summary>
     private List<RewardRunRecord> ReadExisting()
     {
         if (!File.Exists(_filePath))
@@ -97,6 +112,9 @@ public sealed class JsonRewardHistoryRecorder : IRewardHistoryRecorder
         }
     }
 
+    /// <summary>
+    /// Writes the history list to disk atomically via a temp file + move.
+    /// </summary>
     private void WriteAtomic(List<RewardRunRecord> history)
     {
         string tmpPath = _filePath + ".tmp";
@@ -104,6 +122,7 @@ public sealed class JsonRewardHistoryRecorder : IRewardHistoryRecorder
         File.Move(tmpPath, _filePath, overwrite: true);
     }
 
+    /// <summary>Returns the default path for the history file under the app's data directory.</summary>
     private static string DefaultFilePath() =>
         Path.Combine(AppContext.BaseDirectory, "data", "reward-history.json");
 }

@@ -26,7 +26,7 @@ public class AppSettingsTests
         settings.PriceCacheTtlMinutes.Should().Be(5);
         settings.OverlayOpacity.Should().Be(1.0);
         settings.PriceFontSizeOverride.Should().Be(0);
-        settings.ToggleHotkey.Should().Be("Shift+F9");
+        settings.HistoryHotkey.Should().Be("Ctrl+Tab");
         settings.DebugMode.Should().BeFalse();
         settings.SaveDebugImages.Should().BeFalse();
     }
@@ -68,7 +68,7 @@ public class AppSettingsTests
                 PriceCacheTtlMinutes = 10,
                 OverlayOpacity = 0.8,
                 PriceFontSizeOverride = 16,
-                ToggleHotkey = "Ctrl+F10",
+                HistoryHotkey = "Ctrl+F10",
                 DebugMode = true,
                 SaveDebugImages = true,
             };
@@ -84,7 +84,7 @@ public class AppSettingsTests
             loaded.PriceCacheTtlMinutes.Should().Be(10);
             loaded.OverlayOpacity.Should().Be(0.8);
             loaded.PriceFontSizeOverride.Should().Be(16);
-            loaded.ToggleHotkey.Should().Be("Ctrl+F10");
+            loaded.HistoryHotkey.Should().Be("Ctrl+F10");
             loaded.DebugMode.Should().BeTrue();
             loaded.SaveDebugImages.Should().BeTrue();
         }
@@ -108,7 +108,7 @@ public class AppSettingsTests
             settings.DetectionMode.Should().Be("EELog");
             settings.DetectionIntervalMs.Should().Be(250);
             settings.OverlayOpacity.Should().Be(1.0);
-            settings.ToggleHotkey.Should().Be("Shift+F9");
+            settings.HistoryHotkey.Should().Be("Ctrl+Tab");
         }
         finally
         {
@@ -176,9 +176,9 @@ public class AppSettingsTests
     [Fact]
     public void Validate_EmptyHotkey_FallsBackToDefault()
     {
-        var s = new AppSettings { ToggleHotkey = "" };
+        var s = new AppSettings { HistoryHotkey = "" };
         s.Validate();
-        s.ToggleHotkey.Should().Be("Shift+F9");
+        s.HistoryHotkey.Should().Be("Ctrl+Tab");
     }
 
     [Fact]

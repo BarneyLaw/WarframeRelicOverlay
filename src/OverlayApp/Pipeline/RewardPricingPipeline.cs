@@ -28,6 +28,7 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly IOcrEngine _ocr;
     private readonly IRewardMatcher _matcher;
     private readonly IPriceProvider _priceProvider;
+    private readonly IWarframeMarketAPI? _marketApi;
     private readonly ILogger? _logger;
     private readonly bool _enableVisualReadinessGate;
     private readonly bool _saveDebugImages;
@@ -48,13 +49,15 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         IRewardMatcher matcher,
         IPriceProvider priceProvider,
         ILogger? logger = null,
-        AppSettings? settings = null)
+        AppSettings? settings = null,
+        IWarframeMarketAPI? marketApi = null)
     {
         _capturer = capturer ?? throw new ArgumentNullException(nameof(capturer));
         _layoutDetector = layoutDetector ?? throw new ArgumentNullException(nameof(layoutDetector));
         _ocr = ocr ?? throw new ArgumentNullException(nameof(ocr));
         _matcher = matcher ?? throw new ArgumentNullException(nameof(matcher));
         _priceProvider = priceProvider ?? throw new ArgumentNullException(nameof(priceProvider));
+        _marketApi = marketApi;
         _logger = logger;
         _enableVisualReadinessGate = settings is not null;
         _saveDebugImages = settings is not null;
@@ -213,13 +216,43 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            string slug = MarketSlugConverter.ToSlug(matchedItem.CanonicalName);
+            // Prefer the slug precomputed when the reward pool was generated
+            // (in-game name joined against the live market catalog). Fall back
+            // to deriving one from the name only for older pools that predate
+            // slug enrichment.
+            string slug = !string.IsNullOrWhiteSpace(matchedItem.MarketSlug)
+                ? matchedItem.MarketSlug!
+                : MarketSlugConverter.ToSlug(matchedItem.CanonicalName);
             LogInfo(runId, $"Card {index}: price lookup starting; slug=\"{slug}\".");
             price = await _priceProvider.GetPriceAsync(slug, cancellationToken);
 
+            // Fetch richer market data (buy price + seller count) from
+            // the same /top endpoint without an extra HTTP call if the
+            // market API reference is available.
+            int? buyPrice = null;
+            int sellerCount = 0;
+            IReadOnlyList<int> topSellPrices = [];
+            IReadOnlyList<int> topBuyPrices = [];
+            if (_marketApi is not null)
+            {
+                var marketData = await _marketApi.GetMarketDataAsync(slug, cancellationToken);
+                if (marketData.HasValue)
+                {
+                    buyPrice = marketData.Value.HighestBuyPrice;
+                    sellerCount = marketData.Value.SellerCount;
+                    topSellPrices = marketData.Value.TopSellPrices;
+                    topBuyPrices = marketData.Value.TopBuyPrices;
+                    // Use the richer sell price if we didn't get one from the cache
+                    price ??= marketData.Value.LowestSellPrice;
+                }
+            }
+
             LogInfo(runId,
                 $"Card {index}: price lookup complete; item=\"{matchedItem.CanonicalName}\", " +
-                $"slug=\"{slug}\", result={(price.HasValue ? $"{price.Value}p" : "no price")}.");
+                $"slug=\"{slug}\", sell={(price.HasValue ? $"{price.Value}p" : "no price")}, " +
+                $"buy={(buyPrice.HasValue ? $"{buyPrice.Value}p" : "none")}, sellers={sellerCount}.");
+
+            return BuildResult(index, cardRect, matchedItem, price, rawOcrText, buyPrice, sellerCount, topSellPrices, topBuyPrices);
         }
         catch (OperationCanceledException)
         {
@@ -538,13 +571,21 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         Rectangle cardRect,
         RewardItem? matched,
         int? price,
-        string ocrText) =>
+        string ocrText,
+        int? buyPrice = null,
+        int sellerCount = 0,
+        IReadOnlyList<int>? topSellPrices = null,
+        IReadOnlyList<int>? topBuyPrices = null) =>
         new()
         {
             Index = index,
             BoundsInWindow = cardRect,
             MatchedItem = matched,
             PricePlatinum = price,
+            HighestBuyPrice = buyPrice,
+            SellerCount = sellerCount,
+            TopSellPrices = topSellPrices ?? [],
+            TopBuyPrices = topBuyPrices ?? [],
             RawOcrText = ocrText,
         };
 

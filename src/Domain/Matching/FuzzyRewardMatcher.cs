@@ -41,6 +41,13 @@ namespace WarframeRelicOverlay.Domain.Matching
 
         /// <summary>
         /// Matches the best single reward item from the OCR text.
+        /// <para>
+        /// Forma blueprints (with or without a quantity prefix) are
+        /// always returned with <see cref="RewardItem.IsUntradeable"/>
+        /// set to <c>true</c> so the pipeline skips the
+        /// Warframe Market lookup and the overlay shows "Untradeable".
+        /// Forma is account-bound and never has a market price.
+        /// </para>
         /// </summary>
         public RewardItem? MatchSingle(string ocrText)
         {
@@ -69,9 +76,39 @@ namespace WarframeRelicOverlay.Domain.Matching
                 return null;
             }
 
+            // Forma blueprints are always untradeable regardless of the
+            // pool flag — guard here so a stale items.json without the
+            // flag still produces the correct UI.
+            bool isUntradeable = bestMatch.IsUntradeable
+                || IsFormaBlueprint(bestMatch.CanonicalName);
+
             return TryExtractQuantityPrefix(ocrText, out string? prefix)
-                ? new RewardItem($"{prefix}{bestMatch.CanonicalName}", bestMatch.IsUntradeable)
-                : bestMatch;
+                ? new RewardItem($"{prefix}{bestMatch.CanonicalName}", IsUntradeable: isUntradeable)
+                : (isUntradeable && !bestMatch.IsUntradeable
+                    ? new RewardItem(bestMatch.CanonicalName, IsUntradeable: true)
+                    : bestMatch);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="canonicalName"/>
+        /// refers to a Forma blueprint reward (e.g. "Forma Blueprint",
+        /// "2 X Forma Blueprint").  Match is case-insensitive and
+        /// ignores any leading whitespace or quantity prefix.
+        /// </summary>
+        private static bool IsFormaBlueprint(string canonicalName)
+        {
+            if (string.IsNullOrWhiteSpace(canonicalName)) return false;
+
+            // Strip any "<digits> X " prefix and normalise whitespace.
+            string stripped = Regex.Replace(
+                canonicalName.Trim(),
+                @"^\d+\s*[xX]\s*",
+                string.Empty);
+
+            return string.Equals(
+                stripped,
+                "Forma Blueprint",
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static string NormalizeForMatching(string ocrText)

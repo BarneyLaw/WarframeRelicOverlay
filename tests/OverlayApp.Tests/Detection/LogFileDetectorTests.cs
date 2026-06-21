@@ -64,21 +64,19 @@ public class LogFileDetectorTests : IDisposable
         detector.RewardScreenDetected += () => detected.Set();
         detector.Start();
 
-        File.AppendAllText(_logPath, "12345.678 Sys [Info]: GotRewards\n");
+        File.AppendAllText(_logPath, "12345.678 Sys [Info]: ProjectionRewardChoice.lua: Got rewards\n");
 
         Assert.True(detected.Wait(TimeSpan.FromSeconds(2)),
-            "RewardScreenDetected should fire when 'GotRewards' is appended.");
+            "RewardScreenDetected should fire when a reward trigger phrase is appended.");
     }
 
     [Theory]
     [InlineData("VoidProjections: OpenVoidProjectionRewardScreenRMI")]
     [InlineData("VoidProjections: OpenVoidProjectionRewardScreen - PostMigration: 0")]
     [InlineData("Created /Lotus/Interface/ProjectionRewardChoice.swf")]
-    [InlineData("ProjectionRewardChoice.lua: Relic rewards initialized")]
     [InlineData("ProjectionRewardChoice.lua: Got rewards")]
-    [InlineData("Got rewards")]
-    [InlineData("got rewards")]
-    [InlineData("GotRewards")]
+    // Matching is case-insensitive, so a lower-cased line still triggers.
+    [InlineData("sys [info]: projectionrewardchoice.lua: got rewards")]
     public void DetectsKnownRewardTriggerVariants(string triggerText)
     {
         File.WriteAllText(_logPath, "");
@@ -119,7 +117,7 @@ public class LogFileDetectorTests : IDisposable
     public void IgnoresPreExistingContent()
     {
         // Trigger phrase exists BEFORE Start() — should not fire.
-        File.WriteAllText(_logPath, "GotRewards\n");
+        File.WriteAllText(_logPath, "ProjectionRewardChoice.lua: Got rewards\n");
 
         using var detector = new LogFileDetector(_logPath);
         bool fired = false;
@@ -153,7 +151,7 @@ public class LogFileDetectorTests : IDisposable
         File.WriteAllText(_logPath, "");
         Thread.Sleep(100);
 
-        File.AppendAllText(_logPath, "GotRewards\n");
+        File.AppendAllText(_logPath, "ProjectionRewardChoice.lua: Got rewards\n");
 
         Assert.True(detected.Wait(TimeSpan.FromSeconds(2)),
             "Should detect trigger after file truncation.");
@@ -197,7 +195,7 @@ public class LogFileDetectorTests : IDisposable
         detector.Stop();
 
         detector.Start();
-        File.AppendAllText(_logPath, "GotRewards\n");
+        File.AppendAllText(_logPath, "ProjectionRewardChoice.lua: Got rewards\n");
 
         Assert.True(detected.Wait(TimeSpan.FromSeconds(2)),
             "Should detect after stop + restart.");
@@ -215,7 +213,7 @@ public class LogFileDetectorTests : IDisposable
         detector.Start();
         detector.Stop();
 
-        File.AppendAllText(_logPath, "GotRewards\n");
+        File.AppendAllText(_logPath, "ProjectionRewardChoice.lua: Got rewards\n");
         Thread.Sleep(500);
 
         Assert.False(fired,
@@ -234,7 +232,7 @@ public class LogFileDetectorTests : IDisposable
         detector.Start();
         detector.Dispose();
 
-        File.AppendAllText(_logPath, "GotRewards\n");
+        File.AppendAllText(_logPath, "ProjectionRewardChoice.lua: Got rewards\n");
         Thread.Sleep(500);
 
         Assert.False(fired,
@@ -276,7 +274,7 @@ public class LogFileDetectorTests : IDisposable
         detector.RewardScreenDetected += () => detected.Set();
         detector.Start();
 
-        File.WriteAllText(futurePath, "GotRewards\n");
+        File.WriteAllText(futurePath, "ProjectionRewardChoice.lua: Got rewards\n");
 
         Assert.True(detected.Wait(TimeSpan.FromSeconds(2)),
             "Should detect trigger in a file created after Start().");

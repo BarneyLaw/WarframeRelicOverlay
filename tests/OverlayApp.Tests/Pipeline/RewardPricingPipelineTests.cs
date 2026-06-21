@@ -125,6 +125,8 @@ public class RewardPricingPipelineTests
             return Task.FromResult(price);
         }
 
+        public Task<int?> GetPriceAsync(string itemName) => GetPriceAsync(itemName, CancellationToken.None);
+
         public int CallCount => _calls;
     }
 
@@ -205,7 +207,7 @@ public class RewardPricingPipelineTests
 
         sorted[0].MatchedItem!.CanonicalName.Should().Be("Ash Prime Chassis Blueprint");
         sorted[0].PricePlatinum.Should().Be(15);
-        sorted[0].DisplayText.Should().Be("15p");
+        sorted[0].DisplayText.Should().Be("15◆");
 
         sorted[1].MatchedItem!.CanonicalName.Should().Be("Braton Prime Receiver");
         sorted[1].PricePlatinum.Should().Be(5);
@@ -213,7 +215,7 @@ public class RewardPricingPipelineTests
         sorted[2].MatchedItem!.CanonicalName.Should().Be("Forma Blueprint");
         sorted[2].MatchedItem!.IsUntradeable.Should().BeTrue();
         sorted[2].PricePlatinum.Should().BeNull();
-        sorted[2].DisplayText.Should().Be("Untradeable");
+        sorted[2].DisplayText.Should().Be("N/A");
 
         sorted[3].MatchedItem!.CanonicalName.Should().Be("Orthos Prime Blade");
         sorted[3].PricePlatinum.Should().Be(8);
@@ -357,7 +359,7 @@ public class RewardPricingPipelineTests
         var result = await pipeline.ExecuteAsync(TestWindow);
 
         result.Cards.Should().HaveCount(1);
-        result.Cards[0].DisplayText.Should().Be("Untradeable");
+        result.Cards[0].DisplayText.Should().Be("N/A");
         pricer.CallCount.Should().Be(0, "untradeable items should not call the pricer");
     }
 
@@ -505,7 +507,7 @@ public class RewardPricingPipelineTests
             "the readiness capture should be discarded and replaced after the settle delay");
         result.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(450));
         result.Cards.Should().ContainSingle();
-        result.Cards[0].DisplayText.Should().Be("15p");
+        result.Cards[0].DisplayText.Should().Be("15◆");
     }
 
     // ── Constructor null guards ─────────────────────────────────

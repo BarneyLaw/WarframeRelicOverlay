@@ -19,9 +19,51 @@ public sealed class AppSettings
     public int PriceCacheTtlMinutes { get; set; } = 5;
     public double OverlayOpacity { get; set; } = 1.0;
     public int PriceFontSizeOverride { get; set; } = 0;
-    public string ToggleHotkey { get; set; } = "Shift+F9";
+    public string HistoryHotkey { get; set; } = "Ctrl+Tab";
     public bool DebugMode { get; set; } = false;
     public bool SaveDebugImages { get; set; } = false;
+
+    /// <summary>
+    /// Which platinum price to show on the overlay card.
+    /// <c>"Sell"</c> = lowest seller price (default),
+    /// <c>"Buy"</c> = highest buy offer,
+    /// <c>"Both"</c> = show sell as primary and buy on detail row.
+    /// </summary>
+    public string PriceDisplay { get; set; } = "Both";
+
+    /// <summary>
+    /// Background colour of the price card shown below each reward item,
+    /// as an ARGB hex string (e.g. <c>"#EE181410"</c>).  The first two hex
+    /// digits are the alpha channel (FF = fully opaque).
+    /// </summary>
+    public string CardBackgroundColor { get; set; } = "#EE181410";
+
+    /// <summary>
+    /// How many seller prices to show on the overlay card per item.
+    /// <c>1</c> = show only the lowest seller price (default).
+    /// <c>5</c> = show up to 5 lowest seller prices, with the #1 highlighted.
+    /// Only affects the reward screen overlay; history always shows the lowest price.
+    /// </summary>
+    public int ShowTopPrices { get; set; } = 1;
+
+    /// <summary>
+    /// Phrases scanned (case-insensitively) in newly-appended EE.log
+    /// content to detect the relic reward selection screen.  Warframe
+    /// has used different phrasings across versions, so several
+    /// candidates are tried; the overlay fires when <b>any</b> of them
+    /// appears.  Editable in <c>settings.json</c> so a future game
+    /// change can be handled without rebuilding.
+    /// </summary>
+    public List<string> RewardTriggerPhrases { get; set; } =
+    [
+        "GotRewards",
+        "Got rewards",
+        "ProjectionRewardChoice.lua: Got rewards",
+        "ChooseReward",
+        "RewardSelection",
+        "Reward selection",
+        "VoidProjectionRewardChoice",
+    ];
 
     private static readonly JsonSerializerOptions _loadOptions = new()
     {
@@ -102,10 +144,54 @@ public sealed class AppSettings
             }
         }
 
-        if (string.IsNullOrEmpty(ToggleHotkey))
+        if (string.IsNullOrWhiteSpace(HistoryHotkey))
         {
-            warnings.Add("ToggleHotkey is null or empty, falling back to 'Shift+F9'.");
-            ToggleHotkey = "Shift+F9";
+            warnings.Add("HistoryHotkey is null or empty, falling back to 'Ctrl+Tab'.");
+            HistoryHotkey = "Ctrl+Tab";
+        }
+
+        if (PriceDisplay is not ("Sell" or "Buy" or "Both"))
+        {
+            warnings.Add($"Unknown PriceDisplay '{PriceDisplay}', falling back to 'Both'.");
+            PriceDisplay = "Both";
+        }
+
+        if (string.IsNullOrWhiteSpace(CardBackgroundColor))
+        {
+            warnings.Add("CardBackgroundColor is null or empty, resetting to default.");
+            CardBackgroundColor = "#EE181410";
+        }
+
+        if (ShowTopPrices is not (1 or 5))
+        {
+            warnings.Add($"ShowTopPrices {ShowTopPrices} is not 1 or 5, falling back to 1.");
+            ShowTopPrices = 1;
+        }
+
+        if (RewardTriggerPhrases is null || RewardTriggerPhrases.Count == 0)
+        {
+            warnings.Add("RewardTriggerPhrases is null or empty, falling back to 'GotRewards'.");
+            RewardTriggerPhrases = ["GotRewards"];
+        }
+        else
+        {
+            // Drop any null/blank entries so the watcher never scans for
+            // an empty phrase (which would match every line).
+            var cleaned = RewardTriggerPhrases
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .ToList();
+
+            if (cleaned.Count == 0)
+            {
+                warnings.Add("RewardTriggerPhrases contained only blank entries, falling back to 'GotRewards'.");
+                cleaned = ["GotRewards"];
+            }
+
+            if (cleaned.Count != RewardTriggerPhrases.Count)
+                warnings.Add("Removed blank entries from RewardTriggerPhrases.");
+
+            RewardTriggerPhrases = cleaned;
         }
 
         return warnings;
