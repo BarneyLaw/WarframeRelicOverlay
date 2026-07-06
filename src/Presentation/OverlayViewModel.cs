@@ -88,6 +88,12 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     /// <summary>History runs displayed in the history tab.</summary>
     public ObservableCollection<HistoryRunViewModel> HistoryRuns { get; } = new();
 
+    /// <summary>
+    /// The Warframe main window handle, used to return foreground
+    /// focus after closing the history/settings panel.
+    /// </summary>
+    public nint WarframeWindowHandle => _processTracker.MainWindowHandle;
+
     // ── Events ──────────────────────────────────────────────────────
 
     /// <summary>

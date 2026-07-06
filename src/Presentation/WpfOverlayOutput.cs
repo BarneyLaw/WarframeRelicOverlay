@@ -379,9 +379,10 @@ public sealed class WpfOverlayOutput : IOverlayOutput, IDisposable
             double cardCenterXDip = cardLeftDip + cardWidthDip / 2.0;
             double cardBottomDip = cardTopDip + cardHeightDip;
 
-            // Place the label below the card; flip above if it would
-            // overflow the window bottom.
-            double topDip = cardBottomDip + LabelGapDip;
+            // Place the label below the card, shifted down by 15% of
+            // the window height so it clears the player-name row.
+            double extraOffsetDip = window.LogicalHeight * 0.15;
+            double topDip = cardBottomDip + LabelGapDip + extraOffsetDip;
             if (topDip + estimatedLabelHeightDip > window.LogicalHeight)
                 topDip = cardTopDip - estimatedLabelHeightDip - LabelGapDip;
             if (topDip < 0) topDip = 0;

@@ -140,6 +140,13 @@ public partial class OverlayWindow : Window
             {
                 vm.ToggleHistoryPanel();
                 SetInteractive(false);
+
+                // Return focus to Warframe so the player doesn't have
+                // to click the game window after closing the panel.
+                nint wfHwnd = vm.WarframeWindowHandle;
+                if (wfHwnd != nint.Zero)
+                    Win32Interop.SetForegroundWindow(wfHwnd);
+
                 e.Handled = true;
             }
         }
@@ -159,6 +166,12 @@ public partial class OverlayWindow : Window
     {
         if (DataContext is OverlayViewModel vm)
             vm.ShowSettingsTab();
+    }
+
+    /// <summary>Shuts down the entire application when the X button is clicked.</summary>
+    private void OnCloseButtonClick(object sender, RoutedEventArgs e)
+    {
+        Application.Current?.Shutdown();
     }
 
     // ── Click-through toggle ────────────────────────────────────────

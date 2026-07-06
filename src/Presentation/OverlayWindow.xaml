@@ -176,10 +176,9 @@
             </ItemsControl>
         </Canvas>
 
-        <!-- Overlay active badge -->
-        <Border HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="0,14,14,0"
+        <!-- Overlay active badge (centered) -->
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Center"
                 Background="#B312171F"
                 BorderBrush="#CC7AE082"
                 BorderThickness="1"
@@ -293,13 +292,39 @@
                             </Button.Style>
                         </Button>
                     </StackPanel>
-                    <!-- Close hint -->
-                    <TextBlock Text="Press hotkey or Escape to close"
-                               FontSize="11"
-                               Foreground="#555555"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"
-                               Margin="0,0,20,0" />
+                    <!-- Close hint + X button -->
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0">
+                        <TextBlock Text="Press hotkey or Escape to close"
+                                   FontSize="11"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0" />
+                        <Button Content="✕"
+                                FontSize="14"
+                                FontWeight="Bold"
+                                Padding="8,4"
+                                Cursor="Hand"
+                                BorderThickness="1"
+                                Click="OnCloseButtonClick">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#2C1C1C"/>
+                                    <Setter Property="Foreground" Value="#CC6666"/>
+                                    <Setter Property="BorderBrush" Value="#55CC6666"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#442020"/>
+                                            <Setter Property="Foreground" Value="#FF6666"/>
+                                            <Setter Property="BorderBrush" Value="#FF6666"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
 
