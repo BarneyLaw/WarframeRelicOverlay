@@ -71,19 +71,53 @@
                 </ItemsControl.ItemContainerStyle>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Style="{StaticResource PriceLabelBorderStyle}"
-                                HorizontalAlignment="Center">
+                        <Border HorizontalAlignment="Center">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{Binding BackgroundColor, Converter={StaticResource StringToBrushConverter}}" />
+                                    <Setter Property="BorderBrush" Value="#DDB08233" />
+                                    <Setter Property="BorderThickness" Value="1" />
+                                    <Setter Property="CornerRadius" Value="5" />
+                                    <Setter Property="Padding" Value="14,7,14,8" />
+                                    <Setter Property="Opacity" Value="0.96" />
+                                    <Setter Property="Effect">
+                                        <Setter.Value>
+                                            <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="2" Opacity="0.5" />
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                            <Setter Property="BorderBrush" Value="#FFFFD46A" />
+                                            <Setter Property="BorderThickness" Value="1.5" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect Color="#FFD46A" BlurRadius="12" ShadowDepth="0" Opacity="0.35" />
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <StackPanel>
+                                <!-- Best pick badge -->
+                                <TextBlock Text="★ Best Pick"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           Foreground="#FFD46A"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           Margin="0,0,0,3"
+                                           Visibility="{Binding IsHighlighted, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 <!-- Item name (if available) -->
                                 <TextBlock Text="{Binding ItemName}"
-                                           FontSize="12"
+                                           FontSize="11"
                                            FontWeight="SemiBold"
                                            Foreground="#E8E8E8"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            TextWrapping="Wrap"
                                            MaxWidth="200"
-                                           Margin="0,0,0,3">
+                                           Margin="0,0,0,4">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Visible" />
@@ -95,20 +129,41 @@
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <!-- Primary price (e.g. "Sell: 45◆" or "Buy: 38◆") -->
-                                <TextBlock Text="{Binding Text}" Style="{StaticResource PriceTextStyle}" />
+                                <!-- Primary price -->
+                                <TextBlock Text="{Binding Text}"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#F1DCA6" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsHighlighted}" Value="True">
+                                                    <Setter Property="Foreground" Value="#FFE69D" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsFailed}" Value="True">
+                                                    <Setter Property="Foreground" Value="#888888" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsUntradeable}" Value="True">
+                                                    <Setter Property="Foreground" Value="#999999" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                                 <!-- Detail row: Buy price (in Both mode) -->
                                 <TextBlock Text="{Binding DetailText}"
                                            FontSize="11"
                                            Foreground="#A8A8A8"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
-                                           Margin="0,2,0,0"
+                                           Margin="0,3,0,0"
                                            Visibility="{Binding HasDetail, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 <!-- Top sell/buy prices (readable format with headers) -->
                                 <TextBlock Text="{Binding TopPricesText}"
-                                           FontSize="11"
-                                           Foreground="#999999"
+                                           FontSize="10"
+                                           Foreground="#888888"
                                            FontStyle="Italic"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
@@ -122,10 +177,9 @@
             </ItemsControl>
         </Canvas>
 
-        <!-- Overlay active badge -->
-        <Border HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="0,14,14,0"
+        <!-- Overlay active badge (centered) -->
+        <Border HorizontalAlignment="Center"
+                VerticalAlignment="Center"
                 Background="#B312171F"
                 BorderBrush="#CC7AE082"
                 BorderThickness="1"
@@ -239,13 +293,39 @@
                             </Button.Style>
                         </Button>
                     </StackPanel>
-                    <!-- Close hint -->
-                    <TextBlock Text="Press hotkey or Escape to close"
-                               FontSize="11"
-                               Foreground="#555555"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center"
-                               Margin="0,0,20,0" />
+                    <!-- Close hint + X button -->
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Margin="0,0,12,0">
+                        <TextBlock Text="Press hotkey or Escape to close"
+                                   FontSize="11"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,12,0" />
+                        <Button Content="✕"
+                                FontSize="14"
+                                FontWeight="Bold"
+                                Padding="8,4"
+                                Cursor="Hand"
+                                BorderThickness="1"
+                                Click="OnCloseButtonClick">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#2C1C1C"/>
+                                    <Setter Property="Foreground" Value="#CC6666"/>
+                                    <Setter Property="BorderBrush" Value="#55CC6666"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#442020"/>
+                                            <Setter Property="Foreground" Value="#FF6666"/>
+                                            <Setter Property="BorderBrush" Value="#FF6666"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
 

@@ -311,8 +311,19 @@ public partial class App : Application
                 {
                     _viewModel?.ToggleHistoryPanel();
                     overlayWindow.Dispatcher.BeginInvoke(() =>
-                        overlayWindow.SetInteractive(
-                            _viewModel?.IsHistoryPanelVisible == true));
+                    {
+                        bool panelOpen = _viewModel?.IsHistoryPanelVisible == true;
+                        overlayWindow.SetInteractive(panelOpen);
+
+                        // When the panel closes, return focus to Warframe
+                        // so the player doesn't have to click the game window.
+                        if (!panelOpen)
+                        {
+                            nint wfHwnd = _processTracker?.MainWindowHandle ?? nint.Zero;
+                            if (wfHwnd != nint.Zero)
+                                Win32Interop.SetForegroundWindow(wfHwnd);
+                        }
+                    });
                 },
                 logger);
             hotkeyManager.TryRegister();

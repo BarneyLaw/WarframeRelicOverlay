@@ -124,6 +124,10 @@ internal static partial class Win32Interop
     [LibraryImport("user32.dll")]
     internal static partial nint GetForegroundWindow();
 
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetForegroundWindow(nint hWnd);
+
     // ── P/Invoke: global hotkeys ────────────────────────────────────
 
     [LibraryImport("user32.dll", SetLastError = true)]

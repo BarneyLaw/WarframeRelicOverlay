@@ -89,6 +89,12 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     /// <summary>History runs displayed in the history tab.</summary>
     public ObservableCollection<HistoryRunViewModel> HistoryRuns { get; } = new();
 
+    /// <summary>
+    /// The Warframe main window handle, used to return foreground
+    /// focus after closing the history/settings panel.
+    /// </summary>
+    public nint WarframeWindowHandle => _processTracker.MainWindowHandle;
+
     // ── Events ──────────────────────────────────────────────────────
 
     /// <summary>
@@ -558,8 +564,20 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
 
             string mode = _priceDisplay;
 
-            foreach (var card in result.Cards)
+            // Determine the best-priced card index for highlighting.
+            int bestIndex = -1;
+            int bestPrice = -1;
+            for (int i = 0; i < result.Cards.Count; i++)
             {
+                var c = result.Cards[i];
+                if (c.MatchedItem is null || c.MatchedItem.IsUntradeable) continue;
+                int p = c.PricePlatinum ?? 0;
+                if (p > bestPrice) { bestPrice = p; bestIndex = i; }
+            }
+
+            for (int i = 0; i < result.Cards.Count; i++)
+            {
+                var card = result.Cards[i];
                 double scaleX = _dpiScaleX;
                 double scaleY = _dpiScaleY;
 
@@ -573,8 +591,23 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                 // The XAML template uses HorizontalAlignment="Center" inside
                 // a container of MaxWidth, so the label content is centered.
                 double labelLeft = logicalX;
-                // Position card below the game's reward card with a small gap.
-                double labelTop = logicalY + logicalH + 8;
+
+                // Position the overlay card well below the game's reward UI.
+                // The detected card bounds cover only the item-name text row
+                // (~30-35% of window height). Below that sits the player-name
+                // row (~38-42%) and the selection timer. We push the overlay
+                // card to ~60% of the window height from the top to ensure it
+                // sits clearly below all in-game elements, in the dark area
+                // between the reward cards and the bottom HUD.
+                double windowLogicalHeight = result.Window.LogicalHeight;
+                double safeOffsetBelowCard = Math.Max(logicalH * 1.8, windowLogicalHeight * 0.12);
+                double labelTop = logicalY + logicalH + safeOffsetBelowCard;
+
+                // Clamp so the card doesn't go off-screen at the bottom.
+                // Estimated card height ~100 DIPs.
+                double estimatedCardHeight = 100;
+                if (labelTop + estimatedCardHeight > windowLogicalHeight)
+                    labelTop = windowLogicalHeight - estimatedCardHeight - 4;
 
                 // Build the primary display text based on price mode.
                 string displayText = BuildDisplayText(card, mode);
@@ -588,6 +621,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                     MaxWidth = Math.Max(80, logicalW),
                     IsUntradeable = card.MatchedItem?.IsUntradeable == true,
                     IsFailed = card.MatchedItem is null,
+                    IsHighlighted = i == bestIndex && bestPrice > 0,
                     BackgroundColor = _cardBackgroundColor,
                     TopSellPrices = _showTopPrices == 5 ? card.TopSellPrices : [],
                     TopBuyPrices = _showTopPrices == 5 ? card.TopBuyPrices : [],
