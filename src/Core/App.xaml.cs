@@ -21,7 +21,10 @@ using WarframeRelicOverlay.OverlayApp.Detection;
 using WarframeRelicOverlay.OverlayApp.Layout;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
-using WarframeRelicOverlay.Presentation;
+using WarframeRelicOverlay.Presentation.Debugging;
+using WarframeRelicOverlay.Presentation.Input;
+using WarframeRelicOverlay.Presentation.ViewModels;
+using WarframeRelicOverlay.Presentation.Views;
 
 /// <summary>
 /// Application entry point.  Supports two launch modes:
@@ -205,6 +208,16 @@ public partial class App : Application
         services.AddSingleton<IRewardRepository>(
             _ => new JsonRewardRepository(itemsPath));
 
+        // Infrastructure: best-effort reward-pool refresher. Regenerates
+        // items.json on launch by joining WFCD relic drops against the
+        // warframe.market catalog. Runs in the background (see below) and
+        // takes effect on the next launch since the matcher snapshots the
+        // pool at startup.
+        services.AddSingleton(sp => new RewardCatalogRefresher(
+            sp.GetRequiredService<HttpClient>(),
+            itemsPath,
+            sp.GetRequiredService<ILogger>()));
+
         // Domain: matching
         services.AddSingleton<IRewardMatcher, FuzzyRewardMatcher>();
 
@@ -276,6 +289,13 @@ public partial class App : Application
         logger.LogInfo("Position tracking started.");
         _coordinator.Start();
         logger.LogInfo("Coordinator started. Normal mode ready.");
+
+        // Best-effort: refresh the reward pool from the live data sources in
+        // the background. Fire-and-forget — it never blocks startup and
+        // swallows its own errors, leaving the shipped items.json in place if
+        // the network is unavailable.
+        var catalogRefresher = _serviceProvider.GetRequiredService<RewardCatalogRefresher>();
+        _ = Task.Run(() => catalogRefresher.RefreshIfStaleAsync());
 
         // Register the global hotkey for the history/settings panel.
         // Uses the combo from settings so the user can change it in-app.

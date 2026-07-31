@@ -1,7 +1,8 @@
-<Window x:Class="WarframeRelicOverlay.Presentation.OverlayWindow"
+<Window x:Class="WarframeRelicOverlay.Presentation.Views.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:WarframeRelicOverlay.Presentation"
+        xmlns:local="clr-namespace:WarframeRelicOverlay.Presentation.Views"
+        xmlns:conv="clr-namespace:WarframeRelicOverlay.Presentation.Converters"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="WarframeRelicOverlay"
         WindowStyle="None"
@@ -19,13 +20,13 @@
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
         <!-- Inverse: true → Collapsed, false → Visible (for History tab hiding when Settings is active) -->
-        <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
 
         <!-- Inverse bool: true → false, false → true (for disabling slider when Auto is on) -->
-        <local:InverseBooleanConverter x:Key="InverseBoolConverter" />
+        <conv:InverseBooleanConverter x:Key="InverseBoolConverter" />
 
         <!-- Converts ARGB hex string to SolidColorBrush -->
-        <local:StringToBrushConverter x:Key="StringToBrushConverter" />
+        <conv:StringToBrushConverter x:Key="StringToBrushConverter" />
 
         <Style x:Key="PriceLabelBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="#D0181410" />

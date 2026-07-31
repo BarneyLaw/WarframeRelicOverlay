@@ -47,6 +47,7 @@ public sealed class OverlayCoordinator : IDisposable
     private Timer? _displayTimeoutTimer;
     private Timer? _heartbeatTimer;
     private DateTime _lastEventUtc = DateTime.UtcNow;
+    private DateTime _lastConfirmUtc = DateTime.MinValue;
     private RewardRunRecord? _pendingHistory;
     private bool _started;
     private bool _disposed;
@@ -58,6 +59,18 @@ public sealed class OverlayCoordinator : IDisposable
     /// <see cref="OverlayTrigger.RewardScreenExited"/> automatically.
     /// </summary>
     private static readonly TimeSpan DisplayTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// After a reward is confirmed, further reward-detection triggers are
+    /// ignored for this long.  A single reward screen writes several distinct
+    /// trigger phrases to EE.log across its lifetime — the screen-open line,
+    /// then a "Got rewards" line when the player selects — and without this
+    /// cooldown each phrase would launch its own capture (the screen-open one
+    /// is correct; the later one fires after the prices have already cleared
+    /// and captures garbage).  Comfortably longer than a single reward screen,
+    /// far shorter than the minutes between fissure missions.
+    /// </summary>
+    private static readonly TimeSpan RewardCaptureCooldown = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// How often the coordinator writes a heartbeat line to the log
@@ -214,6 +227,20 @@ public sealed class OverlayCoordinator : IDisposable
             return;
         }
 
+        // One reward screen emits several trigger phrases over its lifetime
+        // (screen open, then "Got rewards" at selection). Suppress repeat
+        // captures of the same screen with a cooldown since the last confirm.
+        TimeSpan sinceConfirm;
+        lock (_lock) { sinceConfirm = DateTime.UtcNow - _lastConfirmUtc; }
+        if (sinceConfirm < RewardCaptureCooldown)
+        {
+            Debug.WriteLine("[Coordinator] Reward trigger ignored — capture cooldown active.");
+            _logger?.LogInfo(
+                $"[Coordinator] Reward trigger ignored: {sinceConfirm.TotalSeconds:F1}s since last capture " +
+                $"(< {RewardCaptureCooldown.TotalSeconds:F0}s cooldown) — same reward screen re-logging.");
+            return;
+        }
+
         bool isInstantConfirm =
             _settings.DetectionMode is "EELog" or "Manual";
 
@@ -223,6 +250,7 @@ public sealed class OverlayCoordinator : IDisposable
             _logger?.LogInfo(
                 $"OverlayCoordinator: RewardDetected received (mode={_settings.DetectionMode}) " +
                 "— confirming immediately.");
+            lock (_lock) { _lastConfirmUtc = DateTime.UtcNow; }
             _stateMachine.Fire(OverlayTrigger.RewardConfirmed);
             return;
         }
@@ -240,6 +268,7 @@ public sealed class OverlayCoordinator : IDisposable
             if (_streakCount >= _settings.DetectionStreak)
             {
                 _streakCount = 0;
+                _lastConfirmUtc = DateTime.UtcNow;
                 _stateMachine.Fire(OverlayTrigger.RewardConfirmed);
             }
             else
@@ -482,10 +511,12 @@ public sealed class OverlayCoordinator : IDisposable
     // Reward history
 
     /// <summary>
-    /// Records the completed reward run to the history file immediately
-    /// on a background thread.  Does not wait for the display screen to
-    /// close — this ensures the run is persisted even if the app exits
-    /// before the 15-second display timeout fires.
+    /// Captures the completed reward run in memory as the pending history
+    /// record.  It is <b>not</b> written to disk here — the run is persisted
+    /// only once the reward screen ends (<see cref="FlushRewardHistory"/>)
+    /// or, as a safety net, when the app closes mid-display
+    /// (<see cref="FlushRewardHistorySync"/>).  This guarantees a run is
+    /// recorded exactly once, when the screen the player saw is over.
     /// </summary>
     private void StorePendingRewardHistory(PipelineResult result)
     {
@@ -504,12 +535,8 @@ public sealed class OverlayCoordinator : IDisposable
                 .ToList(),
         };
 
-        // Store in memory in case we need to re-flush on dispose,
-        // and also write to disk immediately.
+        // Hold the run in memory until the reward screen ends.
         lock (_lock) { _pendingHistory = record; }
-
-        var recorder = _historyRecorder;
-        _ = Task.Run(() => recorder.Record(record));
     }
 
     /// <summary>
@@ -526,10 +553,10 @@ public sealed class OverlayCoordinator : IDisposable
             _pendingHistory = null;
         }
 
-        // Nothing to flush — already written by StorePendingRewardHistory.
-        // This is a no-op in the normal path; it only matters if the async
-        // write in StorePendingRewardHistory hasn't completed yet, which
-        // is unlikely but possible during rapid shutdown.
+        // Normally null here: a reward screen that ended during the session
+        // was already flushed by FlushRewardHistory. This only writes when the
+        // app closes while a reward screen is still displaying, so the run the
+        // player just saw is not lost.
         if (record is null || _historyRecorder is null) return;
 
         try
@@ -544,15 +571,37 @@ public sealed class OverlayCoordinator : IDisposable
     }
 
     /// <summary>
-    /// Writes the pending run asynchronously when the reward screen exits
-    /// normally.  Kept for the normal-path cleanup in <see cref="OnStateChanged"/>.
+    /// Writes the pending run to disk when the reward screen exits normally
+    /// (leaving the Displaying state).  Runs the write on the thread pool
+    /// because this is reached from <see cref="OnStateChanged"/>, which
+    /// executes inside the state machine's lock and must not block.  Clears
+    /// the in-memory record so <see cref="FlushRewardHistorySync"/> does not
+    /// write it a second time on dispose.
     /// </summary>
     private void FlushRewardHistory()
     {
-        // Since StorePendingRewardHistory already writes on completion,
-        // this method now just clears the in-memory record to prevent
-        // a double-write on dispose.
-        lock (_lock) { _pendingHistory = null; }
+        RewardRunRecord? record;
+        var recorder = _historyRecorder;
+        lock (_lock)
+        {
+            record = _pendingHistory;
+            _pendingHistory = null;
+        }
+
+        if (record is null || recorder is null) return;
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                recorder.Record(record);
+                _logger?.LogInfo("[Coordinator] Reward history written on screen exit.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError("[Coordinator] Failed to write reward history on screen exit.", ex);
+            }
+        });
     }
 
     // Display timeout

@@ -1,4 +1,4 @@
-namespace WarframeRelicOverlay.Presentation;
+namespace WarframeRelicOverlay.Presentation.Converters;
 
 using System;
 using System.Globalization;

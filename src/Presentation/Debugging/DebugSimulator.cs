@@ -1,4 +1,4 @@
-namespace WarframeRelicOverlay.Presentation;
+namespace WarframeRelicOverlay.Presentation.Debugging;
 
 using System;
 using System.Diagnostics;
@@ -9,6 +9,8 @@ using WarframeRelicOverlay.Domain.Models;
 using WarframeRelicOverlay.Infrastructure.Platform;
 using WarframeRelicOverlay.OverlayApp.Pipeline;
 using WarframeRelicOverlay.OverlayApp.StateMachine;
+using WarframeRelicOverlay.Presentation.ViewModels;
+using WarframeRelicOverlay.Presentation.Views;
 
 /// <summary>
 /// Debug harness that simulates the full overlay lifecycle without

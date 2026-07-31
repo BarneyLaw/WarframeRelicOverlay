@@ -1,4 +1,4 @@
-namespace WarframeRelicOverlay.Presentation;
+namespace WarframeRelicOverlay.Presentation.Commands;
 
 using System.Windows.Input;
 

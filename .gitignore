@@ -15,6 +15,7 @@ packages/
 
 # Claude AI assistant data
 .claude
+.github
 
 # Tesseract debug images (toggled via AppSettings.SaveDebugImages)
 debug-images/
