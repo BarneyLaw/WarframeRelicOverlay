@@ -621,7 +621,6 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                     MaxWidth = Math.Max(80, logicalW),
                     IsUntradeable = card.MatchedItem?.IsUntradeable == true,
                     IsFailed = card.MatchedItem is null,
-                    IsHighlighted = i == bestIndex && bestPrice > 0,
                     BackgroundColor = _cardBackgroundColor,
                     TopSellPrices = _showTopPrices == 5 ? card.TopSellPrices : [],
                     TopBuyPrices = _showTopPrices == 5 ? card.TopBuyPrices : [],
