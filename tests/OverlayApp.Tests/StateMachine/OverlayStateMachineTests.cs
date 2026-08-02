@@ -543,7 +543,7 @@ public class OverlayStateMachineTests
     // ────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void ConcurrentFire_DoesNotCorruptState()
+    public async Task ConcurrentFire_DoesNotCorruptState()
     {
         // Hammer the machine from multiple threads. The state should
         // always be a valid OverlayState value and the machine should
@@ -561,7 +561,7 @@ public class OverlayStateMachineTests
             }
         }));
 
-        Task.WhenAll(tasks).GetAwaiter().GetResult();
+        await Task.WhenAll(tasks);
 
         // State must be one of the valid enum values
         Assert.True(Enum.IsDefined(sm.Current));

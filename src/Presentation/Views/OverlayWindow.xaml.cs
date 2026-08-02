@@ -41,6 +41,15 @@ public partial class OverlayWindow : Window
     private Storyboard? _spinnerStoryboard;
 
     /// <summary>
+    /// Top-centre status badge.  Lives in its own window so its
+    /// shutdown button escapes this window's click-through style.
+    /// </summary>
+    private StatusBadgeWindow? _statusBadge;
+
+    /// <summary>Gap in DIPs between the game's top edge and the badge.</summary>
+    private const double StatusBadgeTopMargin = 12;
+
+    /// <summary>
     /// Constructs the window without showing it.  The composition root
     /// resolves this exactly once and registers it with the DI
     /// container; visibility is controlled by
@@ -105,6 +114,89 @@ public partial class OverlayWindow : Window
         _spinnerStoryboard = new Storyboard();
         _spinnerStoryboard.Children.Add(rotateAnimation);
         _spinnerStoryboard.Begin();
+
+        CreateStatusBadge();
+    }
+
+    // ── Status badge window ─────────────────────────────────────────
+
+    /// <summary>
+    /// Creates the floating status badge and wires it to the view
+    /// model.  Owned by this window so it closes with the overlay.
+    /// </summary>
+    private void CreateStatusBadge()
+    {
+        if (_statusBadge is not null) return;
+
+        _statusBadge = new StatusBadgeWindow
+        {
+            Owner = this,
+            DataContext = DataContext,
+        };
+
+        // SizeToContent means the badge resizes as the status text
+        // changes; re-centre it whenever that happens.
+        _statusBadge.SizeChanged += (_, _) => PositionStatusBadge();
+
+        if (DataContext is OverlayViewModel vm)
+            vm.PropertyChanged += OnViewModelPropertyChanged;
+
+        UpdateStatusBadgeVisibility();
+    }
+
+    /// <summary>Shows or hides the badge as the overlay state changes.</summary>
+    private void OnViewModelPropertyChanged(
+        object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(OverlayViewModel.IsStatusBadgeVisible))
+            UpdateStatusBadgeVisibility();
+    }
+
+    /// <summary>
+    /// Syncs the badge window's visibility with
+    /// <see cref="OverlayViewModel.IsStatusBadgeVisible"/>.  Visibility is
+    /// driven from code rather than a binding because calling
+    /// <see cref="Window.Show"/> writes the same property and would
+    /// clobber the binding.
+    /// </summary>
+    private void UpdateStatusBadgeVisibility()
+    {
+        if (_statusBadge is null) return;
+
+        bool shouldShow = DataContext is OverlayViewModel vm
+                          && vm.IsStatusBadgeVisible;
+
+        if (shouldShow)
+        {
+            PositionStatusBadge();
+            _statusBadge.Show();
+            PositionStatusBadge();
+        }
+        else
+        {
+            _statusBadge.Hide();
+        }
+    }
+
+    /// <summary>
+    /// Centres the badge horizontally on the overlay and pins it just
+    /// below the top edge of Warframe's client area.
+    /// </summary>
+    private void PositionStatusBadge()
+    {
+        if (_statusBadge is null) return;
+
+        // Before the first geometry update the overlay has no bounds yet.
+        if (double.IsNaN(Left) || double.IsNaN(Top) || double.IsNaN(Width)) return;
+
+        // ActualWidth is 0 until the badge has been laid out for the
+        // first time; placing it at the exact centre then is close
+        // enough, and the SizeChanged handler corrects it immediately.
+        double badgeWidth = _statusBadge.ActualWidth;
+        if (double.IsNaN(badgeWidth) || badgeWidth < 0) badgeWidth = 0;
+
+        _statusBadge.Left = Left + ((Width - badgeWidth) / 2);
+        _statusBadge.Top = Top + StatusBadgeTopMargin;
     }
 
     /// <summary>
@@ -140,18 +232,25 @@ public partial class OverlayWindow : Window
         {
             if (vm.IsHistoryPanelVisible)
             {
-                vm.ToggleHistoryPanel();
-                SetInteractive(false);
-
-                // Return focus to Warframe so the player doesn't have
-                // to click the game window after closing the panel.
-                nint wfHwnd = vm.WarframeWindowHandle;
-                if (wfHwnd != nint.Zero)
-                    Win32Interop.SetForegroundWindow(wfHwnd);
-
+                ClosePanelAndReturnToGame(vm);
                 e.Handled = true;
             }
         }
+    }
+
+    /// <summary>
+    /// Closes the history/settings panel, restores click-through, and
+    /// hands foreground focus back to Warframe so the player doesn't
+    /// have to click the game window afterwards.
+    /// </summary>
+    private void ClosePanelAndReturnToGame(OverlayViewModel vm)
+    {
+        vm.ToggleHistoryPanel();
+        SetInteractive(false);
+
+        nint wfHwnd = vm.WarframeWindowHandle;
+        if (wfHwnd != nint.Zero)
+            Win32Interop.SetForegroundWindow(wfHwnd);
     }
 
     // ── Tab click handlers ───────────────────────────────────────────
@@ -170,8 +269,19 @@ public partial class OverlayWindow : Window
             vm.ShowSettingsTab();
     }
 
-    /// <summary>Shuts down the entire application when the X button is clicked.</summary>
+    /// <summary>
+    /// Closes the history/settings panel and returns to the game.  The
+    /// overlay keeps running — quitting is the separate "Shut Down
+    /// Overlay" button.
+    /// </summary>
     private void OnCloseButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is OverlayViewModel vm && vm.IsHistoryPanelVisible)
+            ClosePanelAndReturnToGame(vm);
+    }
+
+    /// <summary>Shuts down the entire application.</summary>
+    private void OnShutdownButtonClick(object sender, RoutedEventArgs e)
     {
         Application.Current?.Shutdown();
     }
@@ -227,6 +337,8 @@ public partial class OverlayWindow : Window
         Top = window.LogicalY;
         Width = window.LogicalWidth;
         Height = window.LogicalHeight;
+
+        PositionStatusBadge();
     }
 
     /// <summary>
@@ -515,5 +627,7 @@ public partial class OverlayWindow : Window
         Top = y * dpiY;
         Width = width * dpiX;
         Height = height * dpiY;
+
+        PositionStatusBadge();
     }
 }

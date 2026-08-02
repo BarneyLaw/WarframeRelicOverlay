@@ -177,28 +177,11 @@
             </ItemsControl>
         </Canvas>
 
-        <!-- Overlay active badge (centered) -->
-        <Border HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Background="#B312171F"
-                BorderBrush="#CC7AE082"
-                BorderThickness="1"
-                CornerRadius="12"
-                Padding="10,6"
-                Visibility="{Binding IsStatusVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="●"
-                           FontSize="13"
-                           Foreground="#7AE082"
-                           Margin="0,0,6,0"
-                           VerticalAlignment="Center" />
-                <TextBlock Text="{Binding StatusText}"
-                           FontSize="11"
-                           FontWeight="SemiBold"
-                           Foreground="#E7F7E9"
-                           VerticalAlignment="Center" />
-            </StackPanel>
-        </Border>
+        <!-- The "overlay active" status badge lives in its own top-level
+             window (StatusBadgeWindow) pinned to the top-centre of the
+             game's client area.  It has to be a separate window because
+             this one is click-through (WS_EX_TRANSPARENT), which would
+             make the shutdown button beside the status text unclickable. -->
 
         <!-- Loading spinner overlaid above the reward area. Hidden by
              default; toggled by the view model. -->
@@ -293,7 +276,7 @@
                             </Button.Style>
                         </Button>
                     </StackPanel>
-                    <!-- Close hint + X button -->
+                    <!-- Close hint + shutdown button + X (close panel) -->
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center"
@@ -303,13 +286,16 @@
                                    Foreground="#555555"
                                    VerticalAlignment="Center"
                                    Margin="0,0,12,0" />
-                        <Button Content="✕"
-                                FontSize="14"
-                                FontWeight="Bold"
-                                Padding="8,4"
+                        <!-- Quits the application entirely -->
+                        <Button Content="Shut Down Overlay"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                Padding="12,5"
+                                Margin="0,0,8,0"
                                 Cursor="Hand"
                                 BorderThickness="1"
-                                Click="OnCloseButtonClick">
+                                ToolTip="Quit the overlay application"
+                                Click="OnShutdownButtonClick">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Background" Value="#2C1C1C"/>
@@ -320,6 +306,30 @@
                                             <Setter Property="Background" Value="#442020"/>
                                             <Setter Property="Foreground" Value="#FF6666"/>
                                             <Setter Property="BorderBrush" Value="#FF6666"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <!-- Returns to the game, leaving the overlay running -->
+                        <Button Content="✕"
+                                FontSize="14"
+                                FontWeight="Bold"
+                                Padding="8,4"
+                                Cursor="Hand"
+                                BorderThickness="1"
+                                ToolTip="Close this panel and return to the game"
+                                Click="OnCloseButtonClick">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background" Value="#1C2028"/>
+                                    <Setter Property="Foreground" Value="#AAAAAA"/>
+                                    <Setter Property="BorderBrush" Value="#33B08233"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#2A3038"/>
+                                            <Setter Property="Foreground" Value="#F1DCA6"/>
+                                            <Setter Property="BorderBrush" Value="#F1DCA6"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>

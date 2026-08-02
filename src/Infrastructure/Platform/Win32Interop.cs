@@ -16,6 +16,7 @@ internal static partial class Win32Interop
     internal const int WS_EX_TRANSPARENT = 0x00000020;
     internal const int WS_EX_LAYERED     = 0x00080000;
     internal const int WS_EX_TOOLWINDOW  = 0x00000080;
+    internal const int WS_EX_NOACTIVATE  = 0x08000000;
 
     // ── Window messages ─────────────────────────────────────────────
 

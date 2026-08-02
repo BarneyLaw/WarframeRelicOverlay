@@ -129,8 +129,21 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
     public bool IsStatusVisible
     {
         get => _isStatusVisible;
-        private set => SetField(ref _isStatusVisible, value);
+        private set
+        {
+            if (!SetField(ref _isStatusVisible, value)) return;
+            OnPropertyChanged(nameof(IsStatusBadgeVisible));
+        }
     }
+
+    /// <summary>
+    /// Whether the floating status badge window (status text plus the
+    /// shutdown button) should be shown.  It follows
+    /// <see cref="IsStatusVisible"/> but stays hidden while the
+    /// full-screen history/settings panel covers the game, since that
+    /// panel carries its own shutdown control.
+    /// </summary>
+    public bool IsStatusBadgeVisible => _isStatusVisible && !_isHistoryPanelVisible;
 
     /// <summary>Whether the loading spinner is currently visible.</summary>
     public bool IsLoadingVisible
@@ -156,6 +169,7 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
         private set
         {
             if (!SetField(ref _isHistoryPanelVisible, value)) return;
+            OnPropertyChanged(nameof(IsStatusBadgeVisible));
             PanelVisibilityChanged?.Invoke(value);
         }
     }
@@ -621,7 +635,6 @@ public sealed class OverlayViewModel : IOverlayOutput, INotifyPropertyChanged
                     MaxWidth = Math.Max(80, logicalW),
                     IsUntradeable = card.MatchedItem?.IsUntradeable == true,
                     IsFailed = card.MatchedItem is null,
-                    IsHighlighted = i == bestIndex && bestPrice > 0,
                     BackgroundColor = _cardBackgroundColor,
                     TopSellPrices = _showTopPrices == 5 ? card.TopSellPrices : [],
                     TopBuyPrices = _showTopPrices == 5 ? card.TopBuyPrices : [],

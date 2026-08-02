@@ -61,7 +61,10 @@
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <PackageReference Include="Tesseract" />
     <PackageReference Include="FuzzySharp" />
-    <PackageReference Include="System.Drawing.Common" />
+    <!-- System.Drawing.Common is supplied by the Microsoft.WindowsDesktop.App
+         framework reference that UseWPF brings in, so an explicit
+         PackageReference here is redundant (NU1510). The test projects,
+         which are plain libraries, still reference the package. -->
   </ItemGroup>
 
 </Project>
