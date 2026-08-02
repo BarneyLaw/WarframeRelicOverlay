@@ -110,7 +110,9 @@ public sealed class EndToEndPipelineTests : IDisposable
         public int? ProcessId => 9999;
         public nint MainWindowHandle => 1;
         public event Action<int>? Started;
+#pragma warning disable CS0067 // Required by IProcessTracker; the stub never stops.
         public event Action<int>? Stopped;
+#pragma warning restore CS0067
         public void Start() { }
         public void SimulateStart() => Started?.Invoke(9999);
         public void Dispose() { }
@@ -142,7 +144,9 @@ public sealed class EndToEndPipelineTests : IDisposable
         private readonly LogFileDetector _inner;
  
         public event Action? RewardDetected;
-        public event Action? RewardLost;       // never fires for EE.log
+#pragma warning disable CS0067 // Required by IRewardDetector; never fires for EE.log.
+        public event Action? RewardLost;
+#pragma warning restore CS0067
         public event Action? RewardScreenExited;
  
         public LogDetectorAdapter(LogFileDetector inner)

@@ -67,7 +67,17 @@ public sealed class LogFileDetector : IRewardScreenDetector
     public event Action? RewardScreenDetected;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Never raised by this detector.  EE.log has no corresponding
+    /// "reward screen closed" line, so screen exit is driven by
+    /// <see cref="Core.OverlayCoordinator"/>'s display timeout instead.
+    /// The event is still part of the
+    /// <see cref="IRewardScreenDetector"/> contract, which
+    /// <see cref="OcrFallbackDetector"/> does raise.
+    /// </remarks>
+#pragma warning disable CS0067 // Required by the interface; see remarks above.
     public event Action? RewardScreenExited;
+#pragma warning restore CS0067
 
     /// <inheritdoc />
     /// <remarks>

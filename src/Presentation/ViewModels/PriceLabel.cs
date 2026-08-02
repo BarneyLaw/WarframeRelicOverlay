@@ -1,14 +1,21 @@
 namespace WarframeRelicOverlay.Presentation.ViewModels;
 
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using WarframeRelicOverlay.Core;
 
 /// <summary>
 /// Data object for a single price label positioned over a reward card.
+///
+/// <para>
+/// Immutable: every property is <c>init</c>-only and the derived
+/// properties are pure functions of those.  The view model replaces the
+/// whole <c>PriceLabels</c> collection on each update rather than
+/// mutating individual labels, so this type deliberately does not
+/// implement <see cref="System.ComponentModel.INotifyPropertyChanged"/>.
+/// </para>
 /// </summary>
-public sealed class PriceLabel : INotifyPropertyChanged
+public sealed class PriceLabel
 {
     /// <summary>Display text (e.g. "Sell: 45◆", "Buy: 38◆", "N/A", "?").</summary>
     public required string Text { get; init; }
@@ -118,7 +125,4 @@ public sealed class PriceLabel : INotifyPropertyChanged
 
     /// <summary>Whether the detail row has content to display.</summary>
     public bool HasDetail => !string.IsNullOrEmpty(DetailText);
-
-    /// <summary>Not used; required by the <see cref="INotifyPropertyChanged"/> interface.</summary>
-    public event PropertyChangedEventHandler? PropertyChanged;
 }

@@ -35,10 +35,11 @@ public interface IRewardScreenDetector : IDisposable
 
     /// <summary>
     /// Raised when the detector determines the reward screen is no
-    /// longer visible.  Not every implementation can detect this —
-    /// <see cref="LogFileDetector"/> does (via a subsequent log line),
-    /// while <see cref="OcrFallbackDetector"/> reports a negative poll
-    /// that the caller can interpret.
+    /// longer visible.  Not every implementation can detect this:
+    /// <see cref="OcrFallbackDetector"/> raises it on the first negative
+    /// poll after a positive one, whereas <see cref="LogFileDetector"/>
+    /// never raises it because EE.log has no screen-close line — there,
+    /// exit is driven by the coordinator's display timeout.
     /// </summary>
     event Action? RewardScreenExited;
 
