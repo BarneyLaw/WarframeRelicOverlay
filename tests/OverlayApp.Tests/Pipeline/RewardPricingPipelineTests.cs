@@ -51,6 +51,29 @@ public class RewardPricingPipelineTests
     }
 
     /// <summary>
+    /// Returns a different layout per call so a test can script the sequence
+    /// of frames the readiness gate sees. The last entry repeats once the
+    /// script runs out.
+    /// </summary>
+    private sealed class ScriptedLayoutDetector : IRewardLayoutDetector
+    {
+        private readonly List<Rectangle>[] _layouts;
+        private int _callIndex = -1;
+
+        public ScriptedLayoutDetector(params List<Rectangle>[] layouts) =>
+            _layouts = layouts;
+
+        public int CallCount => _callIndex + 1;
+
+        public List<Rectangle> DetectCardBoundaries(
+            Bitmap windowScreenshot, int windowWidth, int windowHeight)
+        {
+            int idx = Interlocked.Increment(ref _callIndex);
+            return _layouts[Math.Min(idx, _layouts.Length - 1)];
+        }
+    }
+
+    /// <summary>
     /// Returns canned OCR text per call index. Thread-safe via
     /// <see cref="Interlocked.Increment"/>.
     /// </summary>
@@ -480,10 +503,11 @@ public class RewardPricingPipelineTests
     public async Task VisualReadinessGate_RecapturesAfterRewardTextSettles()
     {
         var capturer = new FakeCapturer();
-        capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
-        capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
+        for (int i = 0; i < 4; i++)
+            capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
 
         var ocr = new MappedOcrEngine();
+        ocr.Map(HeaderCropWidth, "VOID FISSURE/REWARDS");
         ocr.Map(200, "Ash Prime Chassis Blueprint");
 
         var matcher = new FakeMatcher();
@@ -503,11 +527,166 @@ public class RewardPricingPipelineTests
 
         var result = await pipeline.ExecuteAsync(TestWindow);
 
-        capturer.CaptureCount.Should().Be(2,
-            "the readiness capture should be discarded and replaced after the settle delay");
+        capturer.CaptureCount.Should().Be(3,
+            "one capture confirms the reward header, then the readiness capture " +
+            "is discarded and replaced after the settle delay");
         result.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(450));
         result.Cards.Should().ContainSingle();
         result.Cards[0].DisplayText.Should().Be("15◆");
+    }
+
+    /// <summary>
+    /// The reward row the detector reports once the transition finishes:
+    /// equally wide, side-by-side cards. Taken from a real EE.log session.
+    /// </summary>
+    private static List<Rectangle> SettledRow() =>
+    [
+        new(600, 416, 228, 48),
+        new(846, 416, 228, 48),
+    ];
+
+    /// <summary>
+    /// Width of the header crop the readiness gate OCRs, derived from the
+    /// same fractions the pipeline uses against a 1920px-wide capture.
+    /// </summary>
+    private const int HeaderCropWidth = 769;
+
+    /// <summary>
+    /// Drives the readiness gate with <paramref name="layouts"/> and returns
+    /// the card widths the pipeline ended up cropping.
+    /// </summary>
+    private static async Task<List<int>> RunReadinessGateAsync(
+        params List<Rectangle>[] layouts)
+    {
+        var capturer = new FakeCapturer();
+        for (int i = 0; i < 16; i++)
+            capturer.BitmapsToReturn.Enqueue(MakeTestBitmap());
+
+        var ocr = new MappedOcrEngine();
+        ocr.Map(HeaderCropWidth, "VOID FISSURE/REWARDS");
+        ocr.Map(228, "Ash Prime Chassis Blueprint");
+
+        var matcher = new FakeMatcher();
+        matcher.Matches["Ash Prime Chassis Blueprint"] =
+            new RewardItem("Ash Prime Chassis Blueprint");
+
+        var pricer = new FakePricer();
+        pricer.Prices["ash_prime_chassis_blueprint"] = 15;
+
+        var pipeline = new RewardPricingPipeline(
+            capturer,
+            new ScriptedLayoutDetector(layouts),
+            ocr,
+            matcher,
+            pricer,
+            settings: new AppSettings());
+
+        var result = await pipeline.ExecuteAsync(TestWindow);
+        return result.Cards.Select(c => c.BoundsInWindow.Width).ToList();
+    }
+
+    [Fact]
+    public async Task VisualReadinessGate_DoesNotRunLayoutDetectionUntilTheHeaderIsOnScreen()
+    {
+        // Regression: EE.log announces the reward screen several seconds
+        // before it finishes presenting, so the pipeline was running against
+        // live gameplay. The layout detector duly found "cards" in HUD text
+        // (REACTANT COLLECTED / THREAT: MINIMAL / VOID CASCADE) and priced a
+        // mid-mission frame. Nothing may reach the detector until the
+        // top-left "VOID FISSURE/REWARDS" header is actually visible.
+        var capturer = new FakeCapturer { BitmapToReturn = MakeTestBitmap() };
+
+        // OCR returns gameplay HUD text for the header region — never a match.
+        var ocr = new MappedOcrEngine();
+        ocr.Map(HeaderCropWidth, "REACTANT COLLECTED 0/10");
+
+        // A layout the pipeline would happily price if it ever got to run.
+        var detector = new ScriptedLayoutDetector(SettledRow());
+
+        var pipeline = new RewardPricingPipeline(
+            capturer, detector, ocr, new FakeMatcher(), new FakePricer(),
+            settings: new AppSettings());
+
+        // The gate polls for the full readiness budget before giving up, so
+        // cancel instead of waiting it out; the assertion is about what the
+        // pipeline did *not* do in the meantime.
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(400));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => pipeline.ExecuteAsync(TestWindow, cts.Token));
+
+        detector.CallCount.Should().Be(0,
+            "layout detection must not run on frames that are not the reward screen");
+        capturer.CaptureCount.Should().BeGreaterThan(1,
+            "the gate should have been polling for the header the whole time");
+    }
+
+    [Fact]
+    public async Task VisualReadinessGate_RejectsOverlappingCards_EvenWhenTheyReappearIdentically()
+    {
+        // Regression: a mid-transition frame produced two 570px-wide "cards"
+        // overlapping by 174px. Card centres are the gate's settle signal, so
+        // a transition frame that lingers reports the same bogus centres twice
+        // and the gate declares it settled — cropping a blank screen.
+        // Real reward cards never overlap, so this layout is rejected outright.
+        List<Rectangle> Overlapping() =>
+        [
+            new(0, 308, 570, 48),
+            new(396, 308, 570, 48),
+        ];
+
+        var widths = await RunReadinessGateAsync(
+            Overlapping(), Overlapping(), Overlapping(), SettledRow());
+
+        widths.Should().Equal([228, 228],
+            "the overlapping transition frame must be skipped in favour of the " +
+            "real reward row, however many times it repeats");
+    }
+
+    [Fact]
+    public async Task VisualReadinessGate_RejectsUnequalWidths_EvenWhenTheyReappearIdentically()
+    {
+        // The detector sizes every card from one median centre-to-centre
+        // pitch, so cards of different widths mean one was clipped by the
+        // window edge — the real row is centred and never is.
+        List<Rectangle> EdgeClipped() =>
+        [
+            new(845, 286, 554, 35),
+            new(1434, 286, 486, 35),
+        ];
+
+        var widths = await RunReadinessGateAsync(
+            EdgeClipped(), EdgeClipped(), EdgeClipped(), SettledRow());
+
+        widths.Should().Equal([228, 228],
+            "an edge-clipped layout must be skipped in favour of the real row");
+    }
+
+    [Fact]
+    public async Task VisualReadinessGate_ToleranceDoesNotScaleWithTheWiderDetection()
+    {
+        // The settle tolerance is a fraction of card width, so scaling it by
+        // the wider of the two detections buys slack proportional to the very
+        // over-detection it is meant to catch: 400 * 0.25 = 100px of drift
+        // allowed, and these two layouts sit 90px apart. Scaling by the
+        // narrower card holds the window to 100 * 0.25 = 25px and rejects them.
+        // Both layouts are plausible on their own (equal widths, no overlap),
+        // so only the tolerance decides the outcome here.
+        List<Rectangle> Wide() =>
+        [
+            new(0, 308, 400, 48),
+            new(440, 308, 400, 48),
+        ];
+        List<Rectangle> NarrowAndShifted() =>
+        [
+            new(240, 308, 100, 48),
+            new(680, 308, 100, 48),
+        ];
+
+        var widths = await RunReadinessGateAsync(
+            Wide(), NarrowAndShifted(), NarrowAndShifted(), SettledRow());
+
+        widths.Should().Equal([228, 228],
+            "cards 90px out of position are not the same settled row");
     }
 
     // ── Constructor null guards ─────────────────────────────────

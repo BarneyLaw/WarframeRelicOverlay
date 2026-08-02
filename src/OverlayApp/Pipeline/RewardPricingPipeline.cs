@@ -32,7 +32,6 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     private readonly ILogger? _logger;
     private readonly bool _enableVisualReadinessGate;
     private readonly bool _saveDebugImages;
-    private static readonly TimeSpan RewardHeaderTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan RewardHeaderPollInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan RewardCardReadinessTimeout = TimeSpan.FromSeconds(12);
     private static readonly TimeSpan RewardCardPollInterval = TimeSpan.FromMilliseconds(100);
@@ -279,12 +278,26 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             return CaptureOnce(window, runId, stopwatch, "capture-ready");
         }
 
+        // Both phases below share one budget so confirming the header cannot
+        // push the total past what the coordinator's display timeout allows.
+        var readinessStopwatch = Stopwatch.StartNew();
+
+        // Phase 1 — prove we are actually on the reward screen. Without this
+        // the layout detector happily finds "cards" in mid-mission HUD text
+        // (REACTANT COLLECTED, THREAT: MINIMAL, ...) and the pipeline prices
+        // a gameplay frame.
+        if (!await WaitForRewardHeaderAsync(
+                window, runId, stopwatch, readinessStopwatch, cancellationToken))
+        {
+            return null;
+        }
+
+        // Phase 2 — the header is up, but the cards may still be sliding in.
         LogInfo(runId,
             $"Polling for a settled reward card layout every " +
-            $"{RewardCardPollInterval.TotalMilliseconds:F0} ms for up to " +
-            $"{RewardCardReadinessTimeout.TotalMilliseconds:F0} ms.");
+            $"{RewardCardPollInterval.TotalMilliseconds:F0} ms for the remainder of the " +
+            $"{RewardCardReadinessTimeout.TotalMilliseconds:F0} ms readiness budget.");
 
-        var readinessStopwatch = Stopwatch.StartNew();
         int attempt = 0;
 
         while (true)
@@ -310,7 +323,14 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             var candidateRects = _layoutDetector.DetectCardBoundaries(candidate, candidate.Width, candidate.Height);
             candidate.Dispose();
 
-            if (candidateRects.Count > 0)
+            if (candidateRects.Count > 0 && !IsPlausibleCardLayout(candidateRects))
+            {
+                LogInfo(runId,
+                    $"Discarding implausible layout on attempt {attempt}: {candidateRects.Count} card(s), " +
+                    $"bounds={DescribeRects(candidateRects)}. {LayoutImplausibilityHint} " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+            }
+            else if (candidateRects.Count > 0)
             {
                 LogInfo(runId,
                     $"Reward cards visible on attempt {attempt}: {candidateRects.Count} card(s), " +
@@ -354,6 +374,79 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     }
 
     /// <summary>
+    /// Polls the top-left header region until it OCRs as Warframe's
+    /// "VOID FISSURE/REWARDS" title, proving the reward screen is actually on
+    /// screen before anything is captured for pricing.
+    ///
+    /// <para>
+    /// Returns <c>false</c> if the header never appears within the shared
+    /// readiness budget, which abandons the trigger rather than pricing
+    /// whatever happens to be on screen. EE.log announces the reward screen
+    /// several seconds before it finishes presenting, so without this the
+    /// pipeline runs against live gameplay frames.
+    /// </para>
+    /// </summary>
+    private async Task<bool> WaitForRewardHeaderAsync(
+        WindowSnapshot window,
+        string runId,
+        Stopwatch stopwatch,
+        Stopwatch readinessStopwatch,
+        CancellationToken cancellationToken)
+    {
+        LogInfo(runId,
+            $"Waiting up to {RewardCardReadinessTimeout.TotalMilliseconds:F0} ms for the reward-screen " +
+            $"header before any frame is used for pricing.");
+
+        int attempt = 0;
+        string lastHeaderText = string.Empty;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            attempt++;
+
+            Bitmap? frame = _capturer.CaptureWindow(window);
+            if (frame is null)
+            {
+                LogWarning(runId,
+                    $"Header capture attempt {attempt} returned null after " +
+                    $"{stopwatch.ElapsedMilliseconds} ms.");
+                return false;
+            }
+
+            bool ready;
+            try
+            {
+                ready = TryDetectRewardHeader(frame, runId, attempt, out lastHeaderText);
+            }
+            finally
+            {
+                frame.Dispose();
+            }
+
+            if (ready)
+            {
+                LogInfo(runId,
+                    $"Reward header confirmed on attempt {attempt}; " +
+                    $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
+                return true;
+            }
+
+            if (readinessStopwatch.Elapsed >= RewardCardReadinessTimeout)
+            {
+                LogWarning(runId,
+                    $"Reward-screen header never appeared within " +
+                    $"{RewardCardReadinessTimeout.TotalMilliseconds:F0} ms; abandoning this trigger " +
+                    $"rather than pricing whatever is on screen. " +
+                    $"Last header OCR=\"{NormalizeForLog(lastHeaderText)}\".");
+                return false;
+            }
+
+            await Task.Delay(RewardHeaderPollInterval, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Waits for the reward text to finish rendering, recaptures, and re-runs
     /// layout detection. Returns the settled capture only when its detected
     /// layout matches <paramref name="expectedRects"/> (same card count and
@@ -387,6 +480,15 @@ public sealed class RewardPricingPipeline : IRewardPipeline
             $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
 
         var settledRects = _layoutDetector.DetectCardBoundaries(settled, settled.Width, settled.Height);
+        if (settledRects.Count > 0 && !IsPlausibleCardLayout(settledRects))
+        {
+            LogInfo(runId,
+                $"Settled layout ({settledRects.Count} card(s): {DescribeRects(settledRects)}) is implausible. " +
+                $"{LayoutImplausibilityHint} Discarding capture and re-polling.");
+            settled.Dispose();
+            return null;
+        }
+
         if (!LayoutsAgree(expectedRects, settledRects))
         {
             LogInfo(runId,
@@ -403,11 +505,84 @@ public sealed class RewardPricingPipeline : IRewardPipeline
     }
 
     /// <summary>
+    /// Explanation appended to every implausible-layout log line, so the log
+    /// says why a frame was thrown away rather than just that it was.
+    /// </summary>
+    private const string LayoutImplausibilityHint =
+        "Reward cards never overlap and are all the same width, so this frame " +
+        "was captured mid-transition and its card boundaries are not real.";
+
+    /// <summary>
+    /// Largest ratio between the widest and narrowest card in one row before
+    /// the layout is rejected. Deliberately tight: the detector gives every
+    /// card in a row the same width, so the only thing that makes them differ
+    /// is a card being clipped by the window edge. The few percent of slack
+    /// covers rounding rather than any real variation.
+    /// </summary>
+    private const double MaxCardWidthRatio = 1.05;
+
+    /// <summary>
+    /// True when a detected layout could actually be Warframe's reward row.
+    ///
+    /// <para>
+    /// The detector sizes every card from a single median centre-to-centre
+    /// pitch, so a genuine row always comes back as equally wide, side-by-side
+    /// rectangles. Two things break that, and both mean the centres it locked
+    /// onto were not one card apart:
+    /// </para>
+    ///
+    /// <list type="bullet">
+    /// <item>Overlapping cards — the pitch was measured too wide, so each
+    /// rectangle spills into its neighbour.</item>
+    /// <item>Unequal widths — a rectangle ran off the window edge and was
+    /// clipped, which the real row (centred, with margins) never does.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// Screening these out matters because <see cref="LayoutsAgree"/> scales
+    /// its tolerance by card width: a bogus 570px-wide "card" buys a 142px
+    /// tolerance, wide enough for two unrelated transition frames to look
+    /// settled and send a blank capture down the pipeline.
+    /// </para>
+    /// </summary>
+    private static bool IsPlausibleCardLayout(IReadOnlyList<Rectangle> rects)
+    {
+        if (rects.Count == 0) return false;
+
+        int minWidth = int.MaxValue;
+        int maxWidth = 0;
+        foreach (var rect in rects)
+        {
+            if (rect.Width <= 0 || rect.Height <= 0) return false;
+            minWidth = Math.Min(minWidth, rect.Width);
+            maxWidth = Math.Max(maxWidth, rect.Width);
+        }
+
+        if (maxWidth > minWidth * MaxCardWidthRatio) return false;
+
+        // Sorted defensively: the detector emits left-to-right, but the
+        // overlap test is only meaningful on ordered rectangles.
+        var ordered = rects.OrderBy(r => r.X).ToList();
+        for (int i = 1; i < ordered.Count; i++)
+        {
+            if (ordered[i].X < ordered[i - 1].Right) return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// True when two detected layouts describe the same settled set of cards:
     /// identical card count and each card's horizontal centre aligned within a
     /// fraction of the card width. Horizontal centres are the stable invariant
     /// once cards stop sliding; vertical position is ignored because a wrapped
     /// second line can shift a card's crop top without changing which card it is.
+    ///
+    /// <para>
+    /// The tolerance is scaled by the <em>narrower</em> of the two cards so an
+    /// over-wide detection cannot widen the very window that is supposed to
+    /// catch it.
+    /// </para>
     /// </summary>
     private static bool LayoutsAgree(
         IReadOnlyList<Rectangle> expected, IReadOnlyList<Rectangle> actual)
@@ -419,7 +594,8 @@ public sealed class RewardPricingPipeline : IRewardPipeline
         {
             double expectedCenter = expected[i].X + expected[i].Width / 2.0;
             double actualCenter = actual[i].X + actual[i].Width / 2.0;
-            double tolerance = Math.Max(8.0, expected[i].Width * 0.25);
+            double width = Math.Min(expected[i].Width, actual[i].Width);
+            double tolerance = Math.Max(8.0, width * 0.25);
             if (Math.Abs(expectedCenter - actualCenter) > tolerance)
                 return false;
         }
@@ -445,97 +621,6 @@ public sealed class RewardPricingPipeline : IRewardPipeline
 
         SaveDebugImage(screenshot, runId, debugName);
         return screenshot;
-    }
-
-    private async Task<Bitmap?> CaptureWhenRewardHeaderReadyByPollingAsync(
-        WindowSnapshot window,
-        string runId,
-        Stopwatch stopwatch,
-        CancellationToken cancellationToken)
-    {
-        Bitmap? latest = null;
-        string? latestHeaderText = null;
-        int attempt = 0;
-
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            attempt++;
-
-            LogInfo(runId, $"CaptureWindow attempt {attempt} starting.");
-            latest?.Dispose();
-            latest = _capturer.CaptureWindow(window);
-
-            if (latest is null)
-            {
-                LogWarning(runId,
-                    $"CaptureWindow attempt {attempt} returned null after {stopwatch.ElapsedMilliseconds} ms.");
-                return null;
-            }
-
-            LogInfo(runId,
-                $"CaptureWindow attempt {attempt} succeeded: bitmap={latest.Width}x{latest.Height}; " +
-                $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
-
-            if (!_enableVisualReadinessGate)
-            {
-                SaveDebugImage(latest, runId, "capture-ready");
-                return latest;
-            }
-
-            bool isReady = TryDetectRewardHeader(latest, runId, attempt, out latestHeaderText);
-            if (isReady)
-            {
-                LogInfo(runId,
-                    $"Reward header confirmed on attempt {attempt}; elapsed={stopwatch.ElapsedMilliseconds} ms.");
-                return await RecaptureAfterRewardTextSettlesAsync(
-                    window, latest, runId, stopwatch, cancellationToken);
-            }
-
-            if (stopwatch.Elapsed >= RewardHeaderTimeout)
-            {
-                LogWarning(runId,
-                    $"Reward header was not confirmed within {RewardHeaderTimeout.TotalMilliseconds:F0} ms; " +
-                    $"aborting pricing. Last header OCR=\"{NormalizeForLog(latestHeaderText ?? string.Empty)}\".");
-                latest.Dispose();
-                return null;
-            }
-
-            LogInfo(runId,
-                $"Reward header not ready on attempt {attempt}; waiting {RewardHeaderPollInterval.TotalMilliseconds:F0} ms.");
-            await Task.Delay(RewardHeaderPollInterval, cancellationToken);
-        }
-    }
-
-    private async Task<Bitmap?> RecaptureAfterRewardTextSettlesAsync(
-        WindowSnapshot window,
-        Bitmap initialCapture,
-        string runId,
-        Stopwatch stopwatch,
-        CancellationToken cancellationToken)
-    {
-        LogInfo(runId,
-            $"Waiting {RewardTextSettleDelay.TotalMilliseconds:F0} ms for reward text to settle before final capture.");
-
-        initialCapture.Dispose();
-        await Task.Delay(RewardTextSettleDelay, cancellationToken);
-
-        LogInfo(runId, "Final reward capture starting after settle delay.");
-        Bitmap? settledCapture = _capturer.CaptureWindow(window);
-
-        if (settledCapture is null)
-        {
-            LogWarning(runId,
-                $"Final reward capture returned null after {stopwatch.ElapsedMilliseconds} ms.");
-            return null;
-        }
-
-        LogInfo(runId,
-            $"Final reward capture succeeded: bitmap={settledCapture.Width}x{settledCapture.Height}; " +
-            $"elapsed={stopwatch.ElapsedMilliseconds} ms.");
-
-        SaveDebugImage(settledCapture, runId, "capture-ready");
-        return settledCapture;
     }
 
     private bool TryDetectRewardHeader(Bitmap screenshot, string runId, int attempt, out string headerText)
